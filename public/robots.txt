@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://realsoundwizard.com/sitemap.xml
