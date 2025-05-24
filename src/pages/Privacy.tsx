@@ -20,7 +20,7 @@ const Privacy: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-[#1a0b2e]/50 backdrop-blur-sm rounded-xl border border-purple-500/20 p-8">
+        <div className="bg-[#1a0b2e]/50 rounded-xl border border-purple-500/20 p-8">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent mb-8">
             Privacy Policy
           </h1>
