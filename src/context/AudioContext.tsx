@@ -167,6 +167,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
   const oscillatorsRef = useRef<OscillatorNode[]>([]);
   const gainNodesRef = useRef<GainNode[]>([]);
+  const effectNodesRef = useRef<Record<string, AudioNode>>({});
 
   const setupAudioContext = useCallback(() => {
     if (!audioContext) {
@@ -179,15 +180,120 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [audioContext]);
 
+  const createEffectChain = useCallback((ctx: AudioContext, destination: AudioNode) => {
+    const effects = state.effects;
+    let lastNode: AudioNode = destination;
+
+    // Clear previous effect nodes
+    Object.values(effectNodesRef.current).forEach(node => {
+      try {
+        (node as AudioNode).disconnect();
+      } catch (e) {
+        console.warn('Error disconnecting node:', e);
+      }
+    });
+    effectNodesRef.current = {};
+
+    // Create new effect chain in reverse order
+    if (effects.pingPong.enabled) {
+      const delay = ctx.createDelay();
+      const feedback = ctx.createGain();
+      delay.delayTime.value = effects.pingPong.value;
+      feedback.gain.value = 0.3;
+      delay.connect(feedback);
+      feedback.connect(delay);
+      delay.connect(lastNode);
+      lastNode = delay;
+      effectNodesRef.current.pingPong = delay;
+    }
+
+    if (effects.glitch.enabled) {
+      const glitchNode = ctx.createWaveShaper();
+      const curve = new Float32Array(44100);
+      for (let i = 0; i < 44100; i++) {
+        curve[i] = Math.random() * 2 - 1;
+      }
+      glitchNode.curve = curve;
+      glitchNode.connect(lastNode);
+      lastNode = glitchNode;
+      effectNodesRef.current.glitch = glitchNode;
+    }
+
+    if (effects.phaser.enabled) {
+      const phaser = ctx.createBiquadFilter();
+      phaser.type = 'allpass';
+      phaser.frequency.value = 1000 * effects.phaser.value;
+      phaser.Q.value = 10;
+      phaser.connect(lastNode);
+      lastNode = phaser;
+      effectNodesRef.current.phaser = phaser;
+    }
+
+    if (effects.tremolo.enabled) {
+      const tremolo = ctx.createGain();
+      const lfo = ctx.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.value = effects.tremolo.value;
+      lfo.connect(tremolo.gain);
+      tremolo.connect(lastNode);
+      lfo.start();
+      lastNode = tremolo;
+      effectNodesRef.current.tremolo = tremolo;
+    }
+
+    if (effects.chorus.enabled) {
+      const chorus = ctx.createDelay();
+      const lfo = ctx.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.value = effects.chorus.value;
+      lfo.connect(chorus.delayTime);
+      chorus.delayTime.value = 0.03;
+      chorus.connect(lastNode);
+      lfo.start();
+      lastNode = chorus;
+      effectNodesRef.current.chorus = chorus;
+    }
+
+    if (effects.stereoPan.enabled) {
+      const panner = ctx.createStereoPanner();
+      panner.pan.value = effects.stereoPan.value / 100;
+      panner.connect(lastNode);
+      lastNode = panner;
+      effectNodesRef.current.stereoPan = panner;
+    }
+
+    if (effects.noise.enabled) {
+      const noiseGain = ctx.createGain();
+      const bufferSize = ctx.sampleRate;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      noise.loop = true;
+      noiseGain.gain.value = effects.noise.value / 100;
+      noise.connect(noiseGain);
+      noiseGain.connect(lastNode);
+      noise.start();
+      effectNodesRef.current.noise = noiseGain;
+    }
+
+    return lastNode;
+  }, [state.effects]);
+
   const startOscillators = useCallback(() => {
     if (!audioContext || !analyserNode) return;
 
-    oscillatorsRef.current.forEach(osc => osc?.stop());
-    gainNodesRef.current.forEach(gain => gain?.disconnect());
-    oscillatorsRef.current = [];
-    gainNodesRef.current = [];
+    // Stop and disconnect existing oscillators and gains
+    stopOscillators();
 
-    state.channels.forEach((channel) => {
+    // Create effect chain
+    const effectChain = createEffectChain(audioContext, analyserNode);
+
+    // Create and connect oscillators
+    state.channels.forEach((channel, index) => {
       if (!channel.enabled) return;
 
       const oscillator = audioContext.createOscillator();
@@ -195,17 +301,29 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       oscillator.type = channel.waveform;
       oscillator.frequency.setValueAtTime(channel.frequency, audioContext.currentTime);
-      
-      gainNode.gain.setValueAtTime(0.5 / state.channels.length, audioContext.currentTime);
+
+      // Adjust gain based on number of active channels
+      const activeChannels = state.channels.filter(c => c.enabled).length;
+      gainNode.gain.setValueAtTime(0.5 / activeChannels, audioContext.currentTime);
+
+      // Special handling for binaural beats
+      if (state.effects.binaural.enabled && index < 2) {
+        const freq = channel.frequency;
+        if (index === 0) {
+          oscillator.frequency.setValueAtTime(freq - state.effects.binaural.value / 2, audioContext.currentTime);
+        } else {
+          oscillator.frequency.setValueAtTime(freq + state.effects.binaural.value / 2, audioContext.currentTime);
+        }
+      }
 
       oscillator.connect(gainNode);
-      gainNode.connect(analyserNode);
+      gainNode.connect(effectChain);
 
       oscillator.start();
       oscillatorsRef.current.push(oscillator);
       gainNodesRef.current.push(gainNode);
     });
-  }, [audioContext, analyserNode, state.channels]);
+  }, [audioContext, analyserNode, state.channels, state.effects, createEffectChain]);
 
   const stopOscillators = useCallback(() => {
     oscillatorsRef.current.forEach(osc => {
@@ -218,6 +336,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     gainNodesRef.current.forEach(gain => gain?.disconnect());
     oscillatorsRef.current = [];
     gainNodesRef.current = [];
+
+    // Disconnect and clear effect nodes
+    Object.values(effectNodesRef.current).forEach(node => {
+      try {
+        (node as AudioNode).disconnect();
+      } catch (e) {
+        console.warn('Error disconnecting effect node:', e);
+      }
+    });
+    effectNodesRef.current = {};
   }, []);
 
   const togglePlayback = useCallback(() => {
@@ -254,8 +382,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (updates.waveform !== undefined) {
         oscillator.type = updates.waveform;
       }
+      if (updates.enabled !== undefined && updates.enabled !== state.channels[id - 1].enabled) {
+        // Restart oscillators to update gain distribution
+        startOscillators();
+      }
     }
-  }, [audioContext, state.isPlaying]);
+  }, [audioContext, state.isPlaying, state.channels, startOscillators]);
 
   const updateEffect = useCallback((id: string, updates: Partial<AudioEffect>) => {
     setState(prev => ({
@@ -265,7 +397,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         [id]: { ...prev.effects[id], ...updates }
       }
     }));
-  }, []);
+
+    // Restart oscillators to apply effect changes
+    if (state.isPlaying) {
+      startOscillators();
+    }
+  }, [state.isPlaying, startOscillators]);
 
   const updateDuration = useCallback((duration: number) => {
     setState(prev => ({ ...prev, duration }));
