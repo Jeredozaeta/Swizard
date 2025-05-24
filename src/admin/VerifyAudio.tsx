@@ -184,7 +184,7 @@ const VerifyAudio: React.FC<{ onExit: () => void }> = ({ onExit }) => {
               Back to App
             </button>
           </div>
-          <div className="bg-[#1a0b2e]/50 backdrop-blur-sm rounded-lg border border-purple-500/20 p-6">
+          <div className="bg-[#1a0b2e] rounded-lg border border-purple-500/20 p-6">
             <div className="flex items-center gap-3 mb-6">
               <Shield className="h-6 w-6 text-purple-400" />
               <h2 className="text-xl font-semibold text-purple-300">Admin Access</h2>
@@ -214,7 +214,7 @@ const VerifyAudio: React.FC<{ onExit: () => void }> = ({ onExit }) => {
               Back to App
             </button>
           </div>
-          <div className="bg-[#1a0b2e]/50 backdrop-blur-sm rounded-lg border border-purple-500/20 p-6 text-center">
+          <div className="bg-[#1a0b2e] rounded-lg border border-purple-500/20 p-6 text-center">
             <Shield className="h-12 w-12 text-purple-400 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-purple-300 mb-4">Access Denied</h2>
             <p className="text-purple-200 mb-6">

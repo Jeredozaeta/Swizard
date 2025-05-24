@@ -138,7 +138,7 @@ const EmailTestPanel: React.FC<EmailTestPanelProps> = ({ onExit }) => {
           </h1>
         </div>
 
-        <div className="bg-[#1a0b2e]/50 backdrop-blur-sm rounded-lg border border-purple-500/20 p-6">
+        <div className="bg-[#1a0b2e] rounded-lg border border-purple-500/20 p-6">
           <div className="flex items-center gap-4 mb-6">
             <Mail className="h-5 w-5 text-purple-400" />
             <h2 className="text-xl font-semibold text-purple-300">

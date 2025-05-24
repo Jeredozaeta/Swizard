@@ -132,7 +132,7 @@ const MainContent: React.FC = () => {
       <div className="max-w-5xl mx-auto px-4 py-6">
         <Header />
         <main>
-          <div className={`rounded-xl bg-[#1a0b2e]/30 p-6 shadow-lg relative ${
+          <div className={`rounded-xl bg-[#1a0b2e] p-6 shadow-lg relative ${
             !controlsUnlocked ? 'filter blur-sm pointer-events-none' : ''
           }`}>
             {showPricing ? (

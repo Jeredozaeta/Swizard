@@ -83,7 +83,7 @@ const DurationPanel: React.FC<DurationPanelProps> = ({ selectedDuration, onDurat
 
   return (
     <div className="flex items-center justify-center gap-3 mb-6">
-      <div className="flex items-center gap-2 bg-[#1a0b2e]/50 backdrop-blur-sm rounded-lg border border-purple-500/20 px-3 py-1.5">
+      <div className="flex items-center gap-2 bg-[#1a0b2e] rounded-lg border border-purple-500/20 px-3 py-1.5">
         <Clock className="h-4 w-4 text-purple-400" />
         <input
           type="text"

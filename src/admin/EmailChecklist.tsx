@@ -102,7 +102,7 @@ const EmailChecklist: React.FC<EmailChecklistProps> = ({ onExit }) => {
           </h1>
         </div>
 
-        <div className="bg-[#1a0b2e]/50 backdrop-blur-sm rounded-lg border border-purple-500/20 p-6 mb-6">
+        <div className="bg-[#1a0b2e] rounded-lg border border-purple-500/20 p-6 mb-6">
           <div className="flex items-center gap-4 mb-6">
             <input
               type="email"

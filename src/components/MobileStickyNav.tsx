@@ -12,7 +12,7 @@ const MobileStickyNav: React.FC = () => {
   }, []);
 
   return show ? (
-    <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 sm:hidden bg-[#1a0b2e]/80 backdrop-blur px-4 py-2 rounded-full flex gap-6 text-sm border border-purple-500/20 shadow-lg">
+    <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 sm:hidden bg-[#1a0b2e] px-4 py-2 rounded-full flex gap-6 text-sm border border-purple-500/20 shadow-lg">
       <Link
         to="hero"
         smooth={true}
