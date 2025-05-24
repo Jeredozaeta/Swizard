@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Volume2, Music, Waves } from 'lucide-react';
+import { Play, Pause, Volume2, Music, Waves, Brain } from 'lucide-react';
 
 interface PresetProps {
   frequency: number;
@@ -10,6 +10,8 @@ interface PresetProps {
     tremolo?: { frequency: number; depth: number };
     stereoPan?: { frequency: number };
     phaser?: { frequency: number; depth: number };
+    amplitudeMod?: { frequency: number; depth: number };
+    pan360?: { frequency: number };
   };
 }
 
@@ -24,6 +26,9 @@ const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Ic
   const stereoPanOscRef = useRef<OscillatorNode | null>(null);
   const phaserRef = useRef<BiquadFilterNode | null>(null);
   const phaserOscRef = useRef<OscillatorNode | null>(null);
+  const ampModOscRef = useRef<OscillatorNode | null>(null);
+  const ampModGainRef = useRef<GainNode | null>(null);
+  const pan360OscRef = useRef<OscillatorNode | null>(null);
 
   useEffect(() => {
     return () => {
@@ -81,17 +86,51 @@ const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Ic
     return phaserRef.current;
   };
 
+  const setupAmplitudeMod = (ctx: AudioContext, input: AudioNode) => {
+    if (!effects?.amplitudeMod) return input;
+
+    ampModGainRef.current = ctx.createGain();
+    ampModOscRef.current = ctx.createOscillator();
+
+    ampModOscRef.current.frequency.value = effects.amplitudeMod.frequency;
+    ampModGainRef.current.gain.value = effects.amplitudeMod.depth;
+
+    ampModOscRef.current.connect(ampModGainRef.current.gain);
+    input.connect(ampModGainRef.current);
+    ampModOscRef.current.start();
+
+    return ampModGainRef.current;
+  };
+
+  const setupPan360 = (ctx: AudioContext, input: AudioNode) => {
+    if (!effects?.pan360) return input;
+
+    stereoRef.current = ctx.createStereoPanner();
+    pan360OscRef.current = ctx.createOscillator();
+
+    pan360OscRef.current.frequency.value = effects.pan360.frequency;
+    pan360OscRef.current.connect(stereoRef.current.pan);
+    input.connect(stereoRef.current);
+    pan360OscRef.current.start();
+
+    return stereoRef.current;
+  };
+
   const togglePlayback = () => {
     if (isPlaying) {
       oscillatorRef.current?.stop();
       tremoloOscRef.current?.stop();
       stereoPanOscRef.current?.stop();
       phaserOscRef.current?.stop();
+      ampModOscRef.current?.stop();
+      pan360OscRef.current?.stop();
       
       oscillatorRef.current = null;
       tremoloOscRef.current = null;
       stereoPanOscRef.current = null;
       phaserOscRef.current = null;
+      ampModOscRef.current = null;
+      pan360OscRef.current = null;
       
       if (audioContextRef.current?.state === 'running') {
         audioContextRef.current?.close();
@@ -114,6 +153,8 @@ const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Ic
       currentNode = setupTremolo(audioContextRef.current, currentNode);
       currentNode = setupStereoPan(audioContextRef.current, currentNode);
       currentNode = setupPhaser(audioContextRef.current, currentNode);
+      currentNode = setupAmplitudeMod(audioContextRef.current, currentNode);
+      currentNode = setupPan360(audioContextRef.current, currentNode);
       
       // Connect final node to output
       currentNode.connect(audioContextRef.current.destination);
@@ -158,7 +199,9 @@ const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Ic
             Effects: {[
               effects.tremolo && 'Tremolo',
               effects.stereoPan && 'Stereo Pan',
-              effects.phaser && 'Phaser'
+              effects.phaser && 'Phaser',
+              effects.amplitudeMod && 'Amplitude Mod',
+              effects.pan360 && '360° Pan'
             ].filter(Boolean).join(' • ')}
           </p>
         </div>
@@ -169,8 +212,8 @@ const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Ic
 
 const PresetDemo: React.FC = () => {
   return (
-    <div className="max-w-3xl mx-auto px-4 mb-16">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="max-w-4xl mx-auto px-4 mb-16">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Preset
           frequency={432}
           title="432 Hz Healing"
@@ -178,6 +221,16 @@ const PresetDemo: React.FC = () => {
           icon={Volume2}
           effects={{
             tremolo: { frequency: 4.8, depth: 0.3 }
+          }}
+        />
+        <Preset
+          frequency={7.83}
+          title="Schumann Resonance"
+          description="Earth's heartbeat frequency (7.83 Hz) for grounding and enhanced meditation."
+          icon={Brain}
+          effects={{
+            amplitudeMod: { frequency: 7.83, depth: 0.5 },
+            pan360: { frequency: 0.2 }
           }}
         />
         <Preset
