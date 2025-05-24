@@ -17,7 +17,7 @@ import DurationPanel from './DurationPanel';
 import EmailTestPanel from '../admin/EmailTestPanel';
 import EmailChecklist from '../admin/EmailChecklist';
 import VerifyAudio from '../admin/VerifyAudio';
-import { Zap, Crown } from 'lucide-react';
+import { Zap, Sparkles, Crown } from 'lucide-react';
 import SoundInAction from './SoundInAction';
 
 const MainContent: React.FC = () => {
@@ -148,8 +148,15 @@ const MainContent: React.FC = () => {
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <button
-                onClick={() => setShowPricing(true)}
+                onClick={() => setControlsUnlocked(true)}
                 className="btn btn-primary btn-lg group"
+              >
+                <Sparkles className="h-5 w-5 group-hover:animate-spin" />
+                Start Creating
+              </button>
+              <button
+                onClick={() => setShowPricing(true)}
+                className="btn btn-secondary btn-lg group"
               >
                 <Crown className="h-5 w-5 group-hover:animate-pulse" />
                 Upgrade to Pro
