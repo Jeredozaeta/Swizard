@@ -305,7 +305,6 @@ body {
   @apply flex flex-col space-y-2 p-3 rounded-lg
     border border-violet-500/20
     bg-gradient-to-br from-[#1a0b2e]/40 to-[#0f0720]/40
-    backdrop-blur-sm
     hover:from-[#1a0b2e]/60 hover:to-[#0f0720]/60
     hover:border-violet-500/30
     transition-all duration-300 ease-out;
@@ -344,7 +343,6 @@ body {
     bg-gradient-to-br from-[#030014] to-[#1a0b2e]/95
     px-3 py-1.5 text-sm text-white opacity-0 
     shadow-lg shadow-violet-500/10
-    backdrop-blur-sm
     transition-all duration-200 ease-out;
 }
 
@@ -377,7 +375,6 @@ body {
     bg-gradient-to-r from-green-600/80 to-emerald-600/80 
     text-green-100 text-xs font-mono 
     shadow-lg shadow-green-500/20
-    backdrop-blur-sm
     border border-green-500/30;
 }
 
@@ -386,7 +383,6 @@ body {
     bg-gradient-to-r from-amber-600/80 to-yellow-600/80 
     text-amber-100 text-xs font-mono 
     shadow-lg shadow-amber-500/20
-    backdrop-blur-sm
     border border-amber-500/30;
 }
 
