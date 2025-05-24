@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Minus, Waves, Brain, Headphones, Crown, HelpCircle } from 'lucide-react';
+import { Plus, Minus, Waves, Brain, Headphones, Crown, HelpCircle, Sparkles, Shield, Heart } from 'lucide-react';
 import PresetDemo from './PresetDemo';
 
 interface FAQItem {
@@ -10,29 +10,29 @@ interface FAQItem {
 
 const FAQ_ITEMS: FAQItem[] = [
   {
-    question: "What is Swizard?",
-    answer: "Swizard is a professional frequency generator and sound design tool that helps you create custom frequencies for meditation, focus, and relaxation. With our intuitive interface, you can generate precise frequencies, add effects, and export high-quality audio.",
-    icon: HelpCircle
+    question: "What makes Swizard unique?",
+    answer: "Swizard combines professional-grade frequency generation with an intuitive interface, letting you create precise soundscapes for meditation, focus, and well-being. Our advanced effects and real-time visualization make sound design accessible to everyone.",
+    icon: Sparkles
   },
   {
-    question: "How do sound frequencies impact well-being?",
-    answer: "Different frequencies can influence brainwave patterns, affecting mood, focus, and relaxation. For example, alpha waves (8-12 Hz) promote relaxation, while theta waves (4-8 Hz) enhance meditation. Swizard lets you target specific frequencies for desired effects.",
-    icon: Waves
+    question: "How can Swizard benefit my well-being?",
+    answer: "Different frequencies influence brainwave patterns in unique ways. Theta waves (4-8 Hz) enhance meditation and creativity, while alpha waves (8-12 Hz) promote relaxation and focus. Swizard lets you target specific frequencies for your desired mental state.",
+    icon: Heart
   },
   {
-    question: "Can I use Swizard for meditation or sleep aid?",
-    answer: "Yes! Swizard is perfect for creating meditation and sleep sounds. Use our preset frequencies like 432 Hz for relaxation, or create custom binaural beats. Pro users get access to advanced effects and unlimited exports.",
+    question: "Is Swizard backed by research?",
+    answer: "Yes! Scientific studies show that specific frequencies can influence cognitive performance and emotional states. For example, 432 Hz has been linked to reduced stress levels, while binaural beats can enhance focus and meditation. Visit our Science page for detailed research.",
     icon: Brain
   },
   {
-    question: "Is there scientific backing for sound frequency therapy?",
-    answer: "Yes, numerous studies support the benefits of specific frequencies. Research shows that binaural beats can affect cognitive performance, while certain frequencies may influence relaxation and focus. Check our Science page for detailed research.",
-    icon: Headphones
+    question: "Can I use Swizard professionally?",
+    answer: "Absolutely! Pro users get access to studio-grade effects, HD exports, and commercial licensing. Perfect for meditation guides, content creators, sound healers, and wellness practitioners looking to enhance their practice.",
+    icon: Crown
   },
   {
-    question: "Do I need any special equipment to use Swizard?",
-    answer: "No special equipment is required. However, using quality headphones can enhance the experience, especially when working with binaural beats. Any modern device with a web browser will work perfectly with Swizard.",
-    icon: Crown
+    question: "Is Swizard safe to use?",
+    answer: "Safety is our priority. We follow industry standards for frequency ranges and provide clear usage guidelines. Our platform includes built-in volume controls and safety notifications. However, always start at low volumes and consult healthcare professionals if you have specific concerns.",
+    icon: Shield
   }
 ];
 
@@ -45,13 +45,19 @@ const Header: React.FC = () => {
 
   return (
     <>
-      <header className="mb-6 text-center">
-        <div className="flex items-center justify-center gap-3 mb-2">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-violet-500 to-fuchsia-400 bg-clip-text text-transparent">
+      <header className="mb-12 text-center">
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-violet-500 to-fuchsia-400 bg-clip-text text-transparent">
             Swizard
           </h1>
         </div>
-        <p className="text-violet-200 opacity-90">The real sound wizard</p>
+        <h2 className="text-2xl font-semibold text-violet-200 mb-3">
+          Transform Your Mind with Precision Sound
+        </h2>
+        <p className="text-violet-200/80 max-w-2xl mx-auto">
+          Create powerful frequency-based soundscapes for meditation, focus, and well-being. 
+          Used by meditation guides, content creators, and wellness practitioners worldwide.
+        </p>
       </header>
 
       <PresetDemo />
@@ -59,10 +65,10 @@ const Header: React.FC = () => {
       <section className="mb-20 py-16 bg-gradient-to-b from-[#1a0b2e]/50 to-transparent">
         <div className="max-w-3xl mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-3 bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
-            Unlock Your Sound Potential
+            Experience the Power of Sound
           </h2>
           <p className="text-center text-violet-200/80 mb-12">
-            Discover how Swizard can transform your sound experience
+            Join thousands of practitioners using Swizard to enhance well-being through sound
           </p>
           
           <div className="space-y-3">
