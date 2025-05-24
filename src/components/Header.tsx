@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Minus, Waves, Brain, Headphones, Crown, HelpCircle } from 'lucide-react';
+import PresetDemo from './PresetDemo';
 
 interface FAQItem {
   question: string;
@@ -53,13 +54,15 @@ const Header: React.FC = () => {
         <p className="text-violet-200 opacity-90">The real sound wizard</p>
       </header>
 
+      <PresetDemo />
+
       <section className="mb-20 py-16 bg-gradient-to-b from-[#1a0b2e]/50 to-transparent">
         <div className="max-w-3xl mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-3 bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
-            Learn Before You Upgrade
+            Unlock Your Sound Potential
           </h2>
           <p className="text-center text-violet-200/80 mb-12">
-            Learn more about how Swizard can enhance your sound experience
+            Discover how Swizard can transform your sound experience
           </p>
           
           <div className="space-y-3">
