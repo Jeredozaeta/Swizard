@@ -175,7 +175,7 @@ const SoundInAction: React.FC = () => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8 }}
-        className="bg-gradient-to-r from-violet-900/20 to-fuchsia-900/20 rounded-2xl p-8 backdrop-blur-sm"
+        className="bg-gradient-to-r from-violet-900/20 to-fuchsia-900/20 rounded-2xl p-8"
       >
         <div className="flex items-center justify-center gap-4 mb-6">
           <h3 className="text-2xl font-bold text-violet-200">Sound in Action</h3>
