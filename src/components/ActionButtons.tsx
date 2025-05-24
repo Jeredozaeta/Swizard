@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { toast } from 'react-toastify';
-import { Play, Crown, Share2, Save, Download, XCircle } from 'lucide-react';
+import { Play, Crown, Sparkles, Save, Download, XCircle } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 
 interface ActionButtonsProps {
@@ -52,8 +52,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       
       await navigator.clipboard.writeText(url);
       
-      toast.success('Link copied! Share it to load this exact preset.', {
-        icon: '🔗',
+      toast.success('Link copied! Share your creation to inspire others.', {
+        icon: '✨',
         autoClose: TOAST_DURATION,
         pauseOnHover: true,
         closeButton: true
@@ -344,26 +344,36 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
           {state.isPlaying ? 'Stop' : 'Play'}
         </button>
         
-        <button
-          onClick={handleDownload}
-          disabled={downloading || selectedDuration < 30 || exportStatus === 'error' || exportStatus === 'rendering'}
-          className={`btn btn-primary btn-sm bg-gradient-to-r ${
-            exportStatus === 'ready'
-              ? 'from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500'
-              : 'from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500'
-          } shadow-lg hover:shadow-xl transition-all duration-300`}
-        >
-          <Save className="h-4 w-4" />
-          {getExportButtonText()}
-        </button>
+        <div className="relative">
+          <button
+            onClick={handleDownload}
+            disabled={downloading || selectedDuration < 30 || exportStatus === 'error' || exportStatus === 'rendering'}
+            className={`btn btn-primary btn-sm bg-gradient-to-r ${
+              exportStatus === 'ready'
+                ? 'from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500'
+                : 'from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500'
+            } shadow-lg hover:shadow-xl transition-all duration-300`}
+          >
+            <Save className="h-4 w-4" />
+            {getExportButtonText()}
+          </button>
+          {exportStatus === 'rendering' && (
+            <div className="absolute -bottom-2 left-0 right-0 h-1 bg-purple-900/50 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          )}
+        </div>
 
         <button
           onClick={handleShare}
           className={`btn btn-primary btn-sm ${hasChanges ? 'animate-attention' : ''}`}
-          title="Share your current sound setup"
+          title="Share your creation to inspire others"
         >
-          <Share2 className="h-4 w-4" />
-          Share
+          <Sparkles className="h-4 w-4" />
+          Inspire Others
         </button>
         
         <button
