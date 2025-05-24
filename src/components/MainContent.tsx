@@ -17,7 +17,7 @@ import DurationPanel from './DurationPanel';
 import EmailTestPanel from '../admin/EmailTestPanel';
 import EmailChecklist from '../admin/EmailChecklist';
 import VerifyAudio from '../admin/VerifyAudio';
-import { Zap } from 'lucide-react';
+import { Zap, Sparkles, Crown } from 'lucide-react';
 import SoundInAction from './SoundInAction';
 
 const MainContent: React.FC = () => {
@@ -133,6 +133,37 @@ const MainContent: React.FC = () => {
       <div className="max-w-5xl mx-auto px-4 py-6">
         <Header />
         <main>
+          {/* Hero Section */}
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="text-center py-12 mb-20"
+          >
+            <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
+              Create Magical Sound Frequencies
+            </h1>
+            <p className="text-xl text-violet-200/90 mb-8 max-w-2xl mx-auto">
+              Professional audio tools for frequency generation, binaural beats, and sound design. Shape your frequencies with precision controls and studio-grade effects.
+            </p>
+            <div className="flex flex-wrap justify-center gap-4">
+              <button
+                onClick={() => setControlsUnlocked(true)}
+                className="btn btn-primary btn-lg group"
+              >
+                <Sparkles className="h-5 w-5 group-hover:animate-spin" />
+                Start Creating
+              </button>
+              <button
+                onClick={() => setShowPricing(true)}
+                className="btn btn-secondary btn-lg group"
+              >
+                <Crown className="h-5 w-5 group-hover:animate-pulse" />
+                Upgrade to Pro
+              </button>
+            </div>
+          </motion.section>
+
           <SoundInAction />
           
           <div className={`rounded-xl ${
