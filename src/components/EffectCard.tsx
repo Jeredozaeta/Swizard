@@ -35,6 +35,9 @@ const EffectCard: React.FC<EffectCardProps> = ({ effect }) => {
     if (['amplitudeMod', 'isoPulses', 'pan360', 'chorus', 'tremolo', 'phaser'].includes(effect.id)) {
       return `${effect.value}Hz`;
     }
+    if (effect.id === 'reverb') {
+      return `${effect.value}%`;
+    }
     return formatValue(effect.value);
   };
 

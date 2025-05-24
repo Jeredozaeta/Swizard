@@ -1,3 +1,5 @@
+import { v4 as uuidv4 } from 'uuid';
+
 export type Waveform = 'sine' | 'square' | 'sawtooth' | 'triangle';
 export type NoiseType = 'white' | 'pink' | 'brown';
 
@@ -64,6 +66,12 @@ export interface PingPongEffect extends BaseAudioEffect {
   mix: number;
 }
 
+export interface ReverbEffect extends BaseAudioEffect {
+  roomSize: number;
+  dampening: number;
+  mix: number;
+}
+
 export interface AudioEffect extends BaseAudioEffect {
   type?: NoiseType;
   color?: number;
@@ -75,6 +83,8 @@ export interface AudioEffect extends BaseAudioEffect {
   intensity?: number;
   feedback?: number;
   mix?: number;
+  roomSize?: number;
+  dampening?: number;
 }
 
 export interface AudioState {
