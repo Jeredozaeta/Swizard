@@ -6,16 +6,18 @@ interface PresetProps {
   title: string;
   description: string;
   icon: React.ElementType;
+  waveform?: OscillatorType;
   effects?: {
     tremolo?: { frequency: number; depth: number };
     stereoPan?: { frequency: number };
     phaser?: { frequency: number; depth: number };
     amplitudeMod?: { frequency: number; depth: number };
     pan360?: { frequency: number };
+    isoPulses?: { frequency: number; depth: number };
   };
 }
 
-const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Icon, effects }) => {
+const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Icon, waveform = 'sine', effects }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const oscillatorRef = useRef<OscillatorNode | null>(null);
@@ -29,6 +31,8 @@ const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Ic
   const ampModOscRef = useRef<OscillatorNode | null>(null);
   const ampModGainRef = useRef<GainNode | null>(null);
   const pan360OscRef = useRef<OscillatorNode | null>(null);
+  const isoPulsesOscRef = useRef<OscillatorNode | null>(null);
+  const isoPulsesGainRef = useRef<GainNode | null>(null);
 
   useEffect(() => {
     return () => {
@@ -116,6 +120,23 @@ const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Ic
     return stereoRef.current;
   };
 
+  const setupIsoPulses = (ctx: AudioContext, input: AudioNode) => {
+    if (!effects?.isoPulses) return input;
+
+    isoPulsesGainRef.current = ctx.createGain();
+    isoPulsesOscRef.current = ctx.createOscillator();
+
+    isoPulsesOscRef.current.type = 'square';
+    isoPulsesOscRef.current.frequency.value = effects.isoPulses.frequency;
+    isoPulsesGainRef.current.gain.value = effects.isoPulses.depth;
+
+    isoPulsesOscRef.current.connect(isoPulsesGainRef.current.gain);
+    input.connect(isoPulsesGainRef.current);
+    isoPulsesOscRef.current.start();
+
+    return isoPulsesGainRef.current;
+  };
+
   const togglePlayback = () => {
     if (isPlaying) {
       oscillatorRef.current?.stop();
@@ -124,6 +145,7 @@ const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Ic
       phaserOscRef.current?.stop();
       ampModOscRef.current?.stop();
       pan360OscRef.current?.stop();
+      isoPulsesOscRef.current?.stop();
       
       oscillatorRef.current = null;
       tremoloOscRef.current = null;
@@ -131,6 +153,7 @@ const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Ic
       phaserOscRef.current = null;
       ampModOscRef.current = null;
       pan360OscRef.current = null;
+      isoPulsesOscRef.current = null;
       
       if (audioContextRef.current?.state === 'running') {
         audioContextRef.current?.close();
@@ -142,7 +165,7 @@ const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Ic
       oscillatorRef.current = audioContextRef.current.createOscillator();
       gainNodeRef.current = audioContextRef.current.createGain();
 
-      oscillatorRef.current.type = 'sine';
+      oscillatorRef.current.type = waveform;
       oscillatorRef.current.frequency.setValueAtTime(frequency, audioContextRef.current.currentTime);
       gainNodeRef.current.gain.setValueAtTime(0.5, audioContextRef.current.currentTime);
 
@@ -155,6 +178,7 @@ const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Ic
       currentNode = setupPhaser(audioContextRef.current, currentNode);
       currentNode = setupAmplitudeMod(audioContextRef.current, currentNode);
       currentNode = setupPan360(audioContextRef.current, currentNode);
+      currentNode = setupIsoPulses(audioContextRef.current, currentNode);
       
       // Connect final node to output
       currentNode.connect(audioContextRef.current.destination);
@@ -201,7 +225,8 @@ const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Ic
               effects.stereoPan && 'Stereo Pan',
               effects.phaser && 'Phaser',
               effects.amplitudeMod && 'Amplitude Mod',
-              effects.pan360 && '360° Pan'
+              effects.pan360 && '360° Pan',
+              effects.isoPulses && 'Isochronic Pulses'
             ].filter(Boolean).join(' • ')}
           </p>
         </div>
@@ -228,7 +253,9 @@ const PresetDemo: React.FC = () => {
           title="Schumann Resonance"
           description="Earth's heartbeat frequency (7.83 Hz) for grounding and enhanced meditation."
           icon={Brain}
+          waveform="square"
           effects={{
+            isoPulses: { frequency: 7.83, depth: 0.6 },
             amplitudeMod: { frequency: 7.83, depth: 0.5 },
             pan360: { frequency: 0.2 }
           }}
