@@ -514,3 +514,7 @@ export const useAudio = () => {
   }
   return context;
 };
+
+export { AudioProvider }
+
+export { useAudio }
