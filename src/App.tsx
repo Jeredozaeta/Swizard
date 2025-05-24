@@ -1,6 +1,5 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Landing from './pages/Landing';
 import MainContent from './components/MainContent';
 import Success from './components/Success';
 import AdminLogin from './components/AdminLogin';
@@ -21,7 +20,7 @@ const App: React.FC = () => {
           <StripeProvider>
             <AudioProvider>
               <Routes>
-                <Route path="/" element={<Landing />} />
+                <Route path="/" element={<Navigate to="/app" replace />} />
                 <Route path="/app" element={<MainContent />} />
                 <Route path="/app/preset/:id" element={<MainContent />} />
                 <Route path="/success" element={<Success />} />
@@ -30,7 +29,7 @@ const App: React.FC = () => {
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/licensing" element={<Licensing />} />
                 <Route path="/science" element={<Science />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
+                <Route path="*" element={<Navigate to="/app" replace />} />
               </Routes>
             </AudioProvider>
           </StripeProvider>
