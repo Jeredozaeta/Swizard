@@ -180,14 +180,6 @@ const defaultState: AudioState = {
       min: 0,
       max: 100,
       step: 1,
-      roomSize: 'medium',
-      decayTime: 2.0,
-      earlyReflections: -6,
-      diffusion: 50,
-      wetDryMix: 30,
-      preDelay: 20,
-      highDamping: 20,
-      lowDamping: 20,
       description: 'Adds space and depth to the sound'
     }
   }
