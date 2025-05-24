@@ -66,17 +66,6 @@ export interface PingPongEffect extends BaseAudioEffect {
   mix: number;
 }
 
-export interface ReverbEffect extends BaseAudioEffect {
-  roomSize: 'small' | 'medium' | 'large';
-  decayTime: number;
-  earlyReflections: number;
-  diffusion: number;
-  wetDryMix: number;
-  preDelay: number;
-  highDamping: number;
-  lowDamping: number;
-}
-
 export interface AudioEffect extends BaseAudioEffect {
   type?: NoiseType;
   color?: number;
@@ -88,15 +77,6 @@ export interface AudioEffect extends BaseAudioEffect {
   intensity?: number;
   feedback?: number;
   mix?: number;
-  // Reverb specific properties
-  roomSize?: 'small' | 'medium' | 'large';
-  decayTime?: number;
-  earlyReflections?: number;
-  diffusion?: number;
-  wetDryMix?: number;
-  preDelay?: number;
-  highDamping?: number;
-  lowDamping?: number;
 }
 
 export interface AudioState {
