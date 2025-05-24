@@ -102,16 +102,6 @@ const Header: React.FC = () => {
               );
             })}
           </div>
-
-          <div className="mt-12 text-center">
-            <button 
-              onClick={() => window.location.href = '#pricing'}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-lg font-medium text-white hover:from-violet-500 hover:to-fuchsia-500 transition-all duration-300 shadow-lg shadow-purple-500/20"
-            >
-              <Crown className="h-5 w-5" />
-              View Pricing Plans
-            </button>
-          </div>
         </div>
       </section>
     </>
