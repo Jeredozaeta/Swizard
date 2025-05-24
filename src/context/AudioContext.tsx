@@ -176,7 +176,7 @@ const defaultState: AudioState = {
       id: 'reverb',
       name: 'Reverb',
       enabled: false,
-      value: 50, // Controls room size: 0-33 = small, 34-66 = medium, 67-100 = large
+      value: 50,
       min: 0,
       max: 100,
       step: 1,
@@ -213,9 +213,27 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const setupAudioContext = () => {
     if (!audioContextRef.current) {
-      audioContextRef.current = new AudioContext();
-      analyserRef.current = audioContextRef.current.createAnalyser();
-      analyserRef.current.fftSize = 2048;
+      try {
+        // Check for window object and AudioContext/webkitAudioContext
+        if (typeof window !== 'undefined') {
+          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+          
+          if (!AudioContextClass) {
+            console.error('Web Audio API is not supported in this environment');
+            return null;
+          }
+          
+          audioContextRef.current = new AudioContextClass();
+          analyserRef.current = audioContextRef.current.createAnalyser();
+          analyserRef.current.fftSize = 2048;
+        } else {
+          console.error('Window object is not available in this environment');
+          return null;
+        }
+      } catch (error) {
+        console.error('Failed to create AudioContext:', error);
+        return null;
+      }
     }
     return audioContextRef.current;
   };
@@ -250,6 +268,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const togglePlayback = async () => {
     const ctx = setupAudioContext();
+    
+    if (!ctx) {
+      console.error('Failed to initialize audio context');
+      return;
+    }
     
     if (state.isPlaying) {
       oscillatorsRef.current.forEach(osc => osc.stop());
