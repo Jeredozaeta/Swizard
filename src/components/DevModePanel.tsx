@@ -148,7 +148,7 @@ const DevModePanel: React.FC<DevModePanelProps> = ({
   };
 
   return (
-    <div className="fixed bottom-4 right-4 w-96 bg-gray-900/95 backdrop-blur-sm rounded-lg border border-purple-500/30 shadow-xl text-sm max-h-[calc(100vh-2rem)]">
+    <div className="fixed bottom-4 right-4 w-96 bg-gray-900/95 rounded-lg border border-purple-500/30 shadow-xl text-sm max-h-[calc(100vh-2rem)]">
       <div className="flex items-center justify-between p-3 border-b border-purple-500/30">
         <div className="flex items-center gap-2">
           <Settings className="h-4 w-4 text-purple-400" />

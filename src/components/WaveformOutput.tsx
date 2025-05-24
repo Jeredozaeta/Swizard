@@ -245,19 +245,12 @@ const WaveformOutput: React.FC<WaveformOutputProps> = ({ performanceMode }) => {
 
   return (
     <section className="mb-4">
-      <div className={`
-        bg-[#0f0720]/50 rounded-lg border border-purple-500/20 
-        overflow-hidden w-3/4 mx-auto
-        ${performanceMode ? '' : 'backdrop-blur-sm'}
-      `}>
+      <div className="bg-[#0f0720]/50 rounded-lg border border-purple-500/20 overflow-hidden w-3/4 mx-auto">
         <canvas 
           ref={canvasRef} 
           className="w-full h-16"
         ></canvas>
-        <div className={`
-          relative bg-[#0f0720]/50 py-2 border-t border-purple-500/10
-          ${performanceMode ? '' : 'backdrop-blur-sm'}
-        `}>
+        <div className="relative bg-[#0f0720]/50 py-2 border-t border-purple-500/10">
           {showHints ? (
             <div className="flex items-center justify-center gap-4">
               <p

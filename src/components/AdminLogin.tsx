@@ -42,7 +42,7 @@ const AdminLogin: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#030014] via-[#1a0b2e] to-[#0f0720] flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-[#1a0b2e]/50 backdrop-blur-sm rounded-lg border border-purple-500/20 p-8">
+      <div className="max-w-md w-full bg-[#1a0b2e]/50 rounded-lg border border-purple-500/20 p-8">
         <div className="flex items-center justify-center mb-6">
           <Shield className="h-12 w-12 text-purple-400" />
         </div>
