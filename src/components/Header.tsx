@@ -1,5 +1,42 @@
 import React, { useState } from 'react';
-import { Plus, Minus, Waves, Brain, Headphones, Crown, HelpCircle } from 'lucide-react';
+import { Plus, Minus, Waves, Brain, Headphones, Crown, HelpCircle, Play, Pause } from 'lucide-react';
+import { useAudio } from '../context/AudioContext';
+
+const PRESETS = [
+  {
+    id: 'deep-calm',
+    name: 'Deep Calm',
+    description: 'Gentle, grounding bass tones for deep focus',
+    frequency: 60,
+    waveform: 'sine' as const,
+    effects: {
+      binaural: { enabled: true, value: 4 },
+      amplitudeMod: { enabled: true, value: 0.5 }
+    }
+  },
+  {
+    id: 'crystal-clear',
+    name: 'Crystal Clear',
+    description: 'Bright, sparkling textures for alertness',
+    frequency: 4000,
+    waveform: 'sine' as const,
+    effects: {
+      chorus: { enabled: true, value: 2 },
+      stereoPan: { enabled: true, value: 30 }
+    }
+  },
+  {
+    id: 'balanced-harmony',
+    name: 'Balanced Harmony',
+    description: 'Natural frequencies for optimal browsing',
+    frequency: 432,
+    waveform: 'sine' as const,
+    effects: {
+      tremolo: { enabled: true, value: 1 },
+      phaser: { enabled: true, value: 2 }
+    }
+  }
+];
 
 interface FAQItem {
   question: string;
@@ -37,9 +74,44 @@ const FAQ_ITEMS: FAQItem[] = [
 
 const Header: React.FC = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [activePreset, setActivePreset] = useState<string | null>(null);
+  const { state, togglePlayback, updateChannel, updateEffect } = useAudio();
 
   const toggleQuestion = (index: number) => {
     setOpenIndex(openIndex === index ? null : index);
+  };
+
+  const handlePresetClick = (preset: typeof PRESETS[0]) => {
+    if (activePreset === preset.id) {
+      togglePlayback();
+      setActivePreset(null);
+    } else {
+      if (state.isPlaying) {
+        togglePlayback();
+      }
+      
+      // Update channel settings
+      updateChannel(1, {
+        frequency: preset.frequency,
+        waveform: preset.waveform,
+        enabled: true
+      });
+
+      // Reset all effects
+      Object.keys(state.effects).forEach(effectId => {
+        updateEffect(effectId, { enabled: false });
+      });
+
+      // Enable preset effects
+      Object.entries(preset.effects).forEach(([effectId, settings]) => {
+        updateEffect(effectId, settings);
+      });
+
+      setTimeout(() => {
+        togglePlayback();
+        setActivePreset(preset.id);
+      }, 100);
+    }
   };
 
   return (
@@ -50,13 +122,42 @@ const Header: React.FC = () => {
             Swizard
           </h1>
         </div>
-        <p className="text-violet-200 opacity-90">The real sound wizard</p>
+        <p className="text-violet-200 opacity-90 mb-8">The real sound wizard</p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto px-4">
+          {PRESETS.map(preset => (
+            <button
+              key={preset.id}
+              onClick={() => handlePresetClick(preset)}
+              className={`group relative p-6 rounded-lg border transition-all duration-300 ${
+                activePreset === preset.id
+                  ? 'bg-gradient-to-br from-violet-600/20 to-fuchsia-600/20 border-violet-500/50 shadow-lg shadow-violet-500/20'
+                  : 'bg-[#1a0b2e]/50 border-violet-500/20 hover:border-violet-500/40 hover:shadow-lg hover:shadow-violet-500/10'
+              }`}
+            >
+              <div className="absolute top-3 right-3">
+                {activePreset === preset.id ? (
+                  <Pause className="h-5 w-5 text-violet-400" />
+                ) : (
+                  <Play className="h-5 w-5 text-violet-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                )}
+              </div>
+              
+              <h3 className="text-lg font-semibold text-violet-200 mb-2">{preset.name}</h3>
+              <p className="text-sm text-violet-300/70">{preset.description}</p>
+              
+              <div className="mt-4 text-xs font-mono text-violet-400/60">
+                {preset.frequency} Hz • {preset.waveform}
+              </div>
+            </button>
+          ))}
+        </div>
       </header>
 
       <section className="mb-20 py-16 bg-gradient-to-b from-[#1a0b2e]/50 to-transparent">
         <div className="max-w-3xl mx-auto px-4">
           <h2 className="text-3xl font-bold text-center mb-3 bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
-            Learn Before You Upgrade
+            Unlock Your Sound Potential
           </h2>
           <p className="text-center text-violet-200/80 mb-12">
             Learn more about how Swizard can enhance your sound experience
