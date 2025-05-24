@@ -137,3 +137,5 @@ const FrequencyPanel: React.FC = () => {
     </section>
   );
 };
+
+export default FrequencyPanel
