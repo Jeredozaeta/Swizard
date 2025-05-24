@@ -83,8 +83,8 @@ const DurationPanel: React.FC<DurationPanelProps> = ({ selectedDuration, onDurat
 
   return (
     <div className="flex items-center justify-center gap-3 mb-6">
-      <div className="flex items-center gap-3 bg-[#1a0b2e] rounded-lg border border-purple-500/20 px-4 py-2.5 group hover:border-purple-500/30 transition-colors">
-        <Clock className="h-5 w-5 text-purple-400 group-hover:scale-110 transition-transform" />
+      <div className="flex items-center gap-2 bg-[#1a0b2e] rounded-lg border border-purple-500/20 px-3 py-1.5">
+        <Clock className="h-4 w-4 text-purple-400" />
         <input
           type="text"
           value={timeInput}
@@ -92,7 +92,7 @@ const DurationPanel: React.FC<DurationPanelProps> = ({ selectedDuration, onDurat
           onBlur={handleTimeInputBlur}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
           placeholder="HH:MM:SS"
-          className="w-24 bg-transparent text-center font-display text-base focus:outline-none text-purple-200 placeholder-purple-400/50"
+          className="w-20 bg-transparent text-center font-mono text-sm focus:outline-none text-purple-200 placeholder-purple-400/50"
           title="Enter duration (minimum 30s, maximum 12h)"
           maxLength={8}
           aria-label="Duration input"
