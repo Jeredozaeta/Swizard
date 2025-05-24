@@ -21,7 +21,7 @@ const Science: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-[#1a0b2e]/50 backdrop-blur-sm rounded-xl border border-purple-500/20 p-8">
+        <div className="bg-[#1a0b2e]/50 rounded-xl border border-purple-500/20 p-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
