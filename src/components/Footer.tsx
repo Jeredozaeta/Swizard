@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Shield, FileText, Lock } from 'lucide-react';
+import { Shield, FileText, Lock, AlertTriangle } from 'lucide-react';
 
 const Footer: React.FC = () => {
   const currentYear = new Date().getFullYear();
@@ -40,13 +40,18 @@ const Footer: React.FC = () => {
         </div>
         
         <div className="text-center text-sm text-purple-300/70">
-          <p className="mb-2">
+          <p className="mb-4">
             © {currentYear} Swizard. All rights reserved.
           </p>
-          <p className="text-xs">
-            Disclaimer: This tool is for entertainment and experimental purposes only. 
-            Results may vary. Consult healthcare professionals for medical advice.
-          </p>
+          <div className="flex items-start gap-2 justify-center text-xs">
+            <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+            <p className="text-left">
+              Disclaimer: This tool is for experimental and entertainment purposes only. 
+              Results may vary and no medical claims are made. Always consult healthcare 
+              professionals for medical advice. Use at your own risk and start with low 
+              volumes.
+            </p>
+          </div>
         </div>
       </div>
     </footer>

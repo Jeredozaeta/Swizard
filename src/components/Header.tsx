@@ -52,11 +52,11 @@ const Header: React.FC = () => {
           </h1>
         </div>
         <h2 className="text-2xl font-semibold text-violet-200 mb-3">
-          Transform Your Mind with Precision Sound
+          Create Powerful Sound Frequencies
         </h2>
         <p className="text-violet-200/80 max-w-2xl mx-auto">
-          Create powerful frequency-based soundscapes for meditation, focus, and well-being. 
-          Used by meditation guides, content creators, and wellness practitioners worldwide.
+          Design precise frequency-based soundscapes for meditation, focus, and well-being. 
+          Perfect for meditation guides, content creators, and wellness practitioners.
         </p>
       </header>
 
@@ -68,7 +68,7 @@ const Header: React.FC = () => {
             Experience the Power of Sound
           </h2>
           <p className="text-center text-violet-200/80 mb-12">
-            Join thousands of practitioners using Swizard to enhance well-being through sound
+            Start creating transformative sound experiences with professional-grade tools
           </p>
           
           <div className="space-y-3">
