@@ -40,10 +40,9 @@ const DevModePanel: React.FC<DevModePanelProps> = ({
   const getContextStateColor = (state: string) => {
     switch (state) {
       case 'running':
-        return 'text-green-400';
+        return 'text-emerald-400';
       case 'suspended':
-        return 'text-yellow-400';
-      
+        return 'text-amber-400';
       case 'closed':
         return 'text-red-400';
       default:
@@ -149,21 +148,21 @@ const DevModePanel: React.FC<DevModePanelProps> = ({
   };
 
   return (
-    <div className="fixed bottom-4 right-4 w-96 bg-gray-900 rounded-lg border border-purple-500/30 shadow-xl text-sm max-h-[calc(100vh-2rem)]">
-      <div className="flex items-center justify-between p-3 border-b border-purple-500/30">
+    <div className="fixed bottom-4 right-4 w-96 bg-[#1a0b2e] rounded-lg border border-purple-500/30 shadow-xl text-sm max-h-[calc(100vh-2rem)] animate-float">
+      <div className="flex items-center justify-between p-4 border-b border-purple-500/30 bg-gradient-to-r from-purple-500/10 to-fuchsia-500/10">
         <div className="flex items-center gap-2">
-          <Settings className="h-4 w-4 text-purple-400" />
-          <h3 className="font-medium text-purple-300">Developer Mode</h3>
+          <Settings className="h-5 w-5 text-purple-400" />
+          <h3 className="font-display text-base text-purple-300">Developer Mode</h3>
         </div>
         <div className="flex items-center gap-2">
-          <Clock className="h-3 w-3 text-purple-400/70" />
-          <span className="text-xs font-mono text-purple-400/70">{formatTime(sessionTime)}</span>
+          <Clock className="h-4 w-4 text-purple-400/70" />
+          <span className="font-mono text-xs text-purple-400/70">{formatTime(sessionTime)}</span>
         </div>
       </div>
       
-      <div className="overflow-y-auto max-h-[calc(100vh-8rem)] p-3 space-y-3 scrollbar-thin scrollbar-thumb-purple-500/20 scrollbar-track-transparent hover:scrollbar-thumb-purple-500/30">
-        <div className="grid grid-cols-2 gap-2">
-          <div className="col-span-2 bg-indigo-950/50 rounded p-2">
+      <div className="overflow-y-auto max-h-[calc(100vh-8rem)] p-4 space-y-4 scrollbar-thin scrollbar-thumb-purple-500/20 scrollbar-track-transparent hover:scrollbar-thumb-purple-500/30">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2 bg-indigo-950/50 rounded-lg p-3">
             <div className="flex items-center justify-between">
               <span className="text-purple-300/70">Audio Context:</span>
               <div className="flex items-center gap-2">
@@ -178,56 +177,56 @@ const DevModePanel: React.FC<DevModePanelProps> = ({
           <div className="col-span-2 space-y-2">
             <button
               onClick={onToggleWaveform}
-              className="w-full flex items-center gap-2 px-3 py-2 bg-purple-500/20 rounded text-purple-300 hover:bg-purple-500/30 transition-colors"
+              className="w-full flex items-center gap-2 px-4 py-3 bg-purple-500/20 rounded-lg text-purple-300 hover:bg-purple-500/30 transition-all duration-300 group"
             >
               {showWaveform ? (
                 <>
-                  <EyeOff className="h-4 w-4" />
-                  Hide Waveform
+                  <EyeOff className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                  <span className="font-display">Hide Waveform</span>
                 </>
               ) : (
                 <>
-                  <Eye className="h-4 w-4" />
-                  Show Waveform
+                  <Eye className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                  <span className="font-display">Show Waveform</span>
                 </>
               )}
             </button>
 
             <button
               onClick={onShowEmailPanel}
-              className="w-full flex items-center gap-2 px-3 py-2 bg-purple-500/20 rounded text-purple-300 hover:bg-purple-500/30 transition-colors"
+              className="w-full flex items-center gap-2 px-4 py-3 bg-purple-500/20 rounded-lg text-purple-300 hover:bg-purple-500/30 transition-all duration-300 group"
             >
-              <Mail className="h-4 w-4" />
-              Email Test Panel
+              <Mail className="h-5 w-5 group-hover:scale-110 transition-transform" />
+              <span className="font-display">Email Test Panel</span>
             </button>
             
             <button
               onClick={onShowEmailChecklist}
-              className="w-full flex items-center gap-2 px-3 py-2 bg-purple-500/20 rounded text-purple-300 hover:bg-purple-500/30 transition-colors"
+              className="w-full flex items-center gap-2 px-4 py-3 bg-purple-500/20 rounded-lg text-purple-300 hover:bg-purple-500/30 transition-all duration-300 group"
             >
-              <CheckSquare className="h-4 w-4" />
-              Email Checklist
+              <CheckSquare className="h-5 w-5 group-hover:scale-110 transition-transform" />
+              <span className="font-display">Email Checklist</span>
             </button>
 
             <button
               onClick={onShowVerifyAudio}
-              className="w-full flex items-center gap-2 px-3 py-2 bg-purple-500/20 rounded text-purple-300 hover:bg-purple-500/30 transition-colors"
+              className="w-full flex items-center gap-2 px-4 py-3 bg-purple-500/20 rounded-lg text-purple-300 hover:bg-purple-500/30 transition-all duration-300 group"
             >
-              <Waves className="h-4 w-4" />
-              Verify Audio
+              <Waves className="h-5 w-5 group-hover:scale-110 transition-transform" />
+              <span className="font-display">Verify Audio</span>
             </button>
 
             <button
               onClick={handleDeploy}
               disabled={isDeploying}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded text-purple-300 transition-colors ${
+              className={`w-full flex items-center gap-2 px-4 py-3 rounded-lg text-purple-300 transition-all duration-300 group ${
                 isDeploying 
                   ? 'bg-purple-500/10 cursor-not-allowed' 
                   : 'bg-purple-500/20 hover:bg-purple-500/30'
               }`}
             >
-              <Upload className={`h-4 w-4 ${isDeploying ? 'animate-spin' : ''}`} />
-              {isDeploying ? 'Deploying...' : 'Deploy to Live'}
+              <Upload className={`h-5 w-5 ${isDeploying ? 'animate-spin' : 'group-hover:scale-110 transition-transform'}`} />
+              <span className="font-display">{isDeploying ? 'Deploying...' : 'Deploy to Live'}</span>
             </button>
           </div>
         </div>
