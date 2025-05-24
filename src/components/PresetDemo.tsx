@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, Volume2, Music, Waves, Brain } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 interface PresetProps {
   frequency: number;
@@ -161,13 +162,23 @@ const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Ic
       audioContextRef.current = null;
       setIsPlaying(false);
     } else {
+      // Show safety reminder
+      toast.info(
+        'Please use headphones and start at a low volume. Stop immediately if you experience any discomfort.',
+        {
+          icon: '⚠️',
+          autoClose: 5000,
+          position: 'top-center'
+        }
+      );
+
       audioContextRef.current = new AudioContext();
       oscillatorRef.current = audioContextRef.current.createOscillator();
       gainNodeRef.current = audioContextRef.current.createGain();
 
       oscillatorRef.current.type = waveform;
       oscillatorRef.current.frequency.setValueAtTime(frequency, audioContextRef.current.currentTime);
-      gainNodeRef.current.gain.setValueAtTime(0.5, audioContextRef.current.currentTime);
+      gainNodeRef.current.gain.setValueAtTime(0.3, audioContextRef.current.currentTime); // Start at lower volume
 
       oscillatorRef.current.connect(gainNodeRef.current);
 
