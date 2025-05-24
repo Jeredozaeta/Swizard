@@ -33,7 +33,6 @@ const MainContent: React.FC = () => {
   const [performanceMode, setPerformanceMode] = useState(false);
   const { supabase } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
-  const [controlsUnlocked, setControlsUnlocked] = useState(false);
 
   useEffect(() => {
     const loadPresetData = async () => {
@@ -43,7 +42,6 @@ const MainContent: React.FC = () => {
         try {
           const success = await loadPreset(`config=${config}`);
           if (success) {
-            setControlsUnlocked(true);
             toast.success('Preset loaded from shared link!', {
               icon: '🎵'
             });
@@ -62,7 +60,6 @@ const MainContent: React.FC = () => {
         try {
           const success = await loadPreset(id);
           if (success) {
-            setControlsUnlocked(true);
             toast.success('Preset loaded successfully!', {
               icon: '🎵'
             });
@@ -132,9 +129,7 @@ const MainContent: React.FC = () => {
       <div className="max-w-5xl mx-auto px-4 py-6">
         <Header />
         <main>
-          <div className={`rounded-xl bg-[#1a0b2e] p-6 shadow-lg relative ${
-            !controlsUnlocked ? 'filter blur-sm pointer-events-none' : ''
-          }`}>
+          <div className="rounded-xl bg-[#1a0b2e] p-6 shadow-lg">
             {showPricing ? (
               <Pricing onClose={() => setShowPricing(false)} />
             ) : (
