@@ -1,99 +1,14 @@
 import React from 'react';
 import { useAudio } from '../context/AudioContext';
 import { AudioEffect } from '../types';
-import { Info, Volume2, AudioWaveform as Waveform, Waves, Music, Disc, Shuffle, GitBranch, Radio } from 'lucide-react';
+import { Info } from 'lucide-react';
 
 interface EffectCardProps {
   effect: AudioEffect;
 }
 
-const getEffectDescription = (effectId: string): { name: string; description: string; icon: React.ElementType } => {
-  const descriptions = {
-    ringMod: {
-      name: 'Ring Modulation',
-      description: 'Creates metallic, bell-like tones by multiplying the input with an oscillator. Great for robotic and sci-fi sounds. Start at 440Hz for classic effects.',
-      icon: Radio
-    },
-    amplitudeMod: {
-      name: 'Amplitude Modulation',
-      description: 'Varies the volume rhythmically. Perfect for tremolo effects and pulsing sounds. Lower rates (2-5Hz) create gentle waves, higher rates produce vibrato.',
-      icon: Volume2
-    },
-    isoPulses: {
-      name: 'Isochronic Pulses',
-      description: 'Creates distinct on-off pulses at regular intervals. Effective for brainwave entrainment. Use 4-8Hz for meditation, 8-12Hz for focus.',
-      icon: Waveform
-    },
-    stereoPan: {
-      name: 'Stereo Panning',
-      description: 'Moves sound between left and right channels. Creates spatial movement and width. Great for immersive experiences and headphone listening.',
-      icon: GitBranch
-    },
-    pan360: {
-      name: '360° Panning',
-      description: 'Rotates sound in a circular pattern. Creates an immersive, spinning effect. Lower rates for subtle movement, higher for dramatic rotation.',
-      icon: Disc
-    },
-    binaural: {
-      name: 'Binaural Beats',
-      description: 'Creates frequency differences between ears to influence brainwaves. Use with headphones. Delta (0.5-4Hz) for sleep, Theta (4-8Hz) for meditation.',
-      icon: Waves
-    },
-    chorus: {
-      name: 'Chorus',
-      description: 'Adds richness by layering slightly detuned copies. Perfect for creating lush, ethereal textures. Subtle settings work best for meditation.',
-      icon: Music
-    },
-    tremolo: {
-      name: 'Tremolo',
-      description: 'Rapidly varies volume for a shimmering effect. Use low rates (2-5Hz) for gentle pulsing, higher rates for vibrato effects.',
-      icon: Waveform
-    },
-    noise: {
-      name: 'Noise Generator',
-      description: 'Adds filtered noise to the signal. White noise masks unwanted sounds, pink noise aids relaxation. Adjust density for desired texture.',
-      icon: Waves
-    },
-    phaser: {
-      name: 'Phaser',
-      description: 'Creates sweeping, otherworldly effects through phase shifting. Great for adding motion and depth. Lower rates for subtle movement.',
-      icon: Waves
-    },
-    stutter: {
-      name: 'Stutter',
-      description: 'Creates rhythmic interruptions in the sound. Use for glitch effects and rhythmic variation. Adjust rate for different patterns.',
-      icon: Shuffle
-    },
-    shepard: {
-      name: 'Shepard Tone',
-      description: 'Creates an illusion of continuously rising or falling pitch. Perfect for building tension or inducing specific mental states.',
-      icon: Waves
-    },
-    glitch: {
-      name: 'Glitch',
-      description: 'Adds controlled randomization and artifacts. Great for creating unique textures and unexpected variations. Use sparingly for best effect.',
-      icon: Shuffle
-    },
-    pingPong: {
-      name: 'Ping Pong Delay',
-      description: 'Bounces sound between left and right channels with decay. Creates spatial echoes. Adjust feedback for longer/shorter decay.',
-      icon: GitBranch
-    },
-    reverb: {
-      name: 'Reverb',
-      description: 'Simulates sound in different spaces. Small rooms for intimacy, large halls for expansive atmosphere. Adjust mix for blend.',
-      icon: Music
-    }
-  };
-
-  return descriptions[effectId as keyof typeof descriptions] || {
-    name: effectId,
-    description: 'Modifies the sound in unique ways.',
-    icon: Waves
-  };
-};
-
 const EffectCard: React.FC<EffectCardProps> = ({ effect }) => {
+  // Early return if effect is undefined
   if (!effect) {
     return null;
   }
@@ -141,19 +56,15 @@ const EffectCard: React.FC<EffectCardProps> = ({ effect }) => {
     return 'effect-low';
   };
 
-  const effectInfo = getEffectDescription(effect.id);
-  const EffectIcon = effectInfo.icon;
-
   return (
     <div className={`effect-card ${effect.enabled ? 'effect-active' : ''} ${getIntensityClass()}`}>
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <EffectIcon className="h-4 w-4 text-purple-400" />
-          <h3 className="text-sm font-medium text-purple-200">{effectInfo.name}</h3>
+        <div className="flex items-center gap-1">
+          <h3 className="text-sm font-medium text-purple-200">{effect.name}</h3>
           <div className="has-tooltip">
             <Info className="h-3 w-3 info-icon" />
             <div className="tooltip -translate-y-full -translate-x-1/2 left-1/2 top-0 w-48 text-xs">
-              {effectInfo.description}
+              {effect.description}
             </div>
           </div>
         </div>
@@ -165,7 +76,6 @@ const EffectCard: React.FC<EffectCardProps> = ({ effect }) => {
               effect.enabled ? getIntensityClass() : ''
             }`}
             aria-pressed={effect.enabled}
-            title={effect.enabled ? 'Disable effect' : 'Enable effect'}
           >
             <span className="sr-only">{effect.enabled ? 'Enabled' : 'Disabled'}</span>
             <span
@@ -186,9 +96,7 @@ const EffectCard: React.FC<EffectCardProps> = ({ effect }) => {
               effect.enabled 
                 ? 'text-purple-300 bg-indigo-900/80' 
                 : 'text-purple-400/50'
-            }`}
-            title={`Current value: ${getValueLabel()}`}
-          >
+            }`}>
             {getValueLabel()}
           </span>
         </div>
@@ -210,7 +118,6 @@ const EffectCard: React.FC<EffectCardProps> = ({ effect }) => {
             ${!effect.enabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
             ${effect.enabled ? getIntensityClass() : ''}
           `}
-          title={`Adjust ${effectInfo.name.toLowerCase()} amount`}
         />
       </div>
     </div>
