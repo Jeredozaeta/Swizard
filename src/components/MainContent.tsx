@@ -148,6 +148,13 @@ const MainContent: React.FC = () => {
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <button
+                onClick={() => setControlsUnlocked(true)}
+                className="btn btn-primary btn-lg group"
+              >
+                <Sparkles className="h-5 w-5 group-hover:animate-spin" />
+                Start Creating
+              </button>
+              <button
                 onClick={() => setShowPricing(true)}
                 className="btn btn-secondary btn-lg group"
               >
