@@ -10,10 +10,10 @@ interface ActionButtonsProps {
 
 type ExportStatus = 'idle' | 'rendering' | 'ready' | 'error';
 
-const MIN_AUDIO_SIZE = 1024; // 1KB minimum size
-const TOAST_DURATION = 5000; // 5 seconds
-const BYTES_PER_SECOND = 192000; // 48kHz * 16-bit * 2 channels
-const GB_THRESHOLD = 3 * 1024 * 1024 * 1024; // 3GB in bytes
+const MIN_AUDIO_SIZE = 1024;
+const TOAST_DURATION = 5000;
+const BYTES_PER_SECOND = 192000;
+const GB_THRESHOLD = 3 * 1024 * 1024 * 1024;
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDuration }) => {
   const { state, togglePlayback, sharePreset } = useAudio();
@@ -335,43 +335,43 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
 
   return (
     <section className="mb-6">      
-      <div className="flex justify-center gap-3 mb-8">
+      <div className="flex justify-center gap-4 mb-8">
         <button
           onClick={togglePlayback}
-          className="btn btn-primary btn-sm"
+          className="btn btn-primary btn-lg group"
         >
-          <Play className="h-4 w-4" />
-          {state.isPlaying ? 'Stop' : 'Play'}
+          <Play className="h-5 w-5 group-hover:scale-110 transition-transform" />
+          <span className="font-display">{state.isPlaying ? 'Stop' : 'Play'}</span>
         </button>
         
         <button
           onClick={handleDownload}
           disabled={downloading || selectedDuration < 30 || exportStatus === 'error' || exportStatus === 'rendering'}
-          className={`btn btn-primary btn-sm bg-gradient-to-r ${
+          className={`btn btn-lg ${
             exportStatus === 'ready'
-              ? 'from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500'
-              : 'from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500'
-          } shadow-lg hover:shadow-xl transition-all duration-300`}
+              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white'
+              : 'btn-primary'
+          } group`}
         >
-          <Save className="h-4 w-4" />
-          {getExportButtonText()}
+          <Save className="h-5 w-5 group-hover:scale-110 transition-transform" />
+          <span className="font-display">{getExportButtonText()}</span>
         </button>
 
         <button
           onClick={handleShare}
-          className={`btn btn-primary btn-sm ${hasChanges ? 'animate-attention' : ''}`}
+          className={`btn btn-primary btn-lg group ${hasChanges ? 'animate-pulse-gentle' : ''}`}
           title="Share your current sound setup"
         >
-          <Share2 className="h-4 w-4" />
-          Share
+          <Share2 className="h-5 w-5 group-hover:scale-110 transition-transform" />
+          <span className="font-display">Share</span>
         </button>
         
         <button
           onClick={onShowPricing}
-          className="btn btn-primary btn-sm"
+          className="btn btn-primary btn-lg group"
         >
-          <Crown className="h-4 w-4" />
-          Go Pro
+          <Crown className="h-5 w-5 group-hover:scale-110 transition-transform" />
+          <span className="font-display">Go Pro</span>
         </button>
       </div>
 
@@ -379,11 +379,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         <div className="flex items-center justify-center gap-2 mt-4 mb-8">
           <button
             onClick={handleCancelDownload}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors group"
             title="Cancel this export"
           >
-            <XCircle className="h-4 w-4" />
-            Cancel Export
+            <XCircle className="h-5 w-5 group-hover:scale-110 transition-transform" />
+            <span className="font-display">Cancel Export</span>
           </button>
         </div>
       )}
