@@ -197,22 +197,17 @@ const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Ic
         </div>
         <button
           onClick={togglePlayback}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+          className={`p-2 rounded-lg transition-colors ${
             isPlaying
               ? 'bg-purple-600/30 hover:bg-purple-600/40 text-purple-200'
               : 'bg-purple-600/20 hover:bg-purple-600/30 text-purple-300'
           }`}
+          title={isPlaying ? 'Stop' : 'Play'}
         >
           {isPlaying ? (
-            <>
-              <Pause className="h-4 w-4" />
-              Stop
-            </>
+            <Pause className="h-4 w-4" />
           ) : (
-            <>
-              <Play className="h-4 w-4" />
-              Play
-            </>
+            <Play className="h-4 w-4" />
           )}
         </button>
       </div>
