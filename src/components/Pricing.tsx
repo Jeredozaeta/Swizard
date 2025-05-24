@@ -317,7 +317,7 @@ const Pricing: React.FC<PricingProps> = ({ onClose }) => {
                 } transition-all duration-300`}
               >
                 <div
-                  className={`relative h-full rounded-xl backdrop-blur-sm border transition-all duration-300 ${
+                  className={`relative h-full rounded-xl border transition-all duration-300 ${
                     isMiddle
                       ? 'border-violet-500/50 bg-gradient-to-b from-violet-900/20 to-fuchsia-900/20 scale-[1.02] shadow-lg shadow-violet-500/20'
                       : 'border-violet-500/20 bg-gradient-to-b from-[#1a0b2e]/40 to-[#0f0720]/40'

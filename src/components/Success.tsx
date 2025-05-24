@@ -59,7 +59,7 @@ const Success: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#030014] via-[#1a0b2e] to-[#0f0720] flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-[#1a0b2e]/50 backdrop-blur-sm rounded-lg border border-purple-500/20 p-8 text-center">
+      <div className="max-w-md w-full bg-[#1a0b2e]/50 rounded-lg border border-purple-500/20 p-8 text-center">
         <div className="mb-6">
           <CheckCircle className="h-16 w-16 text-green-400 mx-auto" />
         </div>
