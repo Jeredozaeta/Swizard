@@ -7,22 +7,24 @@ const PRESETS = [
     id: 'deep-calm',
     name: 'Deep Calm',
     description: 'Gentle, grounding bass tones for deep focus',
-    frequency: 60,
+    frequency: 40,
     waveform: 'sine' as const,
     effects: {
       binaural: { enabled: true, value: 4 },
-      amplitudeMod: { enabled: true, value: 0.5 }
+      tremolo: { enabled: true, value: 0.5 },
+      reverb: { enabled: true, value: 80 }
     }
   },
   {
     id: 'crystal-clear',
     name: 'Crystal Clear',
     description: 'Bright, sparkling textures for alertness',
-    frequency: 4000,
-    waveform: 'sine' as const,
+    frequency: 6000,
+    waveform: 'triangle' as const,
     effects: {
-      chorus: { enabled: true, value: 2 },
-      stereoPan: { enabled: true, value: 30 }
+      chorus: { enabled: true, value: 3 },
+      stereoPan: { enabled: true, value: 50 },
+      reverb: { enabled: true, value: 30 }
     }
   },
   {
@@ -32,8 +34,9 @@ const PRESETS = [
     frequency: 432,
     waveform: 'sine' as const,
     effects: {
-      tremolo: { enabled: true, value: 1 },
-      phaser: { enabled: true, value: 2 }
+      binaural: { enabled: true, value: 7.83 },
+      pan360: { enabled: true, value: 0.8 },
+      reverb: { enabled: true, value: 50 }
     }
   }
 ];
