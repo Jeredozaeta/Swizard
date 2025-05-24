@@ -52,7 +52,7 @@ const FrequencyPanel: React.FC = () => {
 
   return (
     <section className="mb-8">      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mx-auto">
         {state.channels.map((channel) => (
           <div 
             key={channel.id} 
@@ -138,4 +138,4 @@ const FrequencyPanel: React.FC = () => {
   );
 };
 
-export default FrequencyPanel
+export default FrequencyPanel;
