@@ -21,8 +21,7 @@ const AudioFXPanel: React.FC = () => {
     'chorus',
     'tremolo',
     'noise',
-    'phaser',
-    'reverb'
+    'phaser'
   ];
 
   const specialEffects = [
@@ -152,7 +151,7 @@ const AudioFXPanel: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
         {standardEffects.map(id => (
           <div key={id} className="col-span-1">
-            {state.effects[id] && <EffectCard effect={state.effects[id]} />}
+            <EffectCard effect={state.effects[id]} />
           </div>
         ))}
       </div>
@@ -160,7 +159,7 @@ const AudioFXPanel: React.FC = () => {
       <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
         {specialEffects.map(id => (
           <div key={id} className="col-span-1">
-            {state.effects[id] && <EffectCard effect={state.effects[id]} />}
+            <EffectCard effect={state.effects[id]} />
           </div>
         ))}
       </div>
