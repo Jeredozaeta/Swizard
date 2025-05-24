@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,9 +9,6 @@
   --primary-indigo: #4f46e5;
   --dark-bg: #030014;
 }
-
-/* Import custom font */
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&display=swap');
 
 /* Mobile-first media queries */
 @media (max-width: 640px) {
