@@ -221,9 +221,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const setupEffectChain = useCallback((ctx: AudioContext, analyser: AnalyserNode) => {
     const effects: Record<string, any> = {};
+    let lastNode: AudioNode = analyser;
 
-    // Create and configure effect nodes
-    Object.entries(state.effects).forEach(([id, effect]) => {
+    // Create and configure effect nodes in reverse order
+    Object.entries(state.effects).reverse().forEach(([id, effect]) => {
       if (effect.enabled) {
         switch (id) {
           case 'binaural': {
@@ -240,19 +241,22 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             rightOsc.connect(rightGain);
             leftGain.connect(merger, 0, 0);
             rightGain.connect(merger, 0, 1);
-            merger.connect(analyser);
+            merger.connect(lastNode);
 
             leftOsc.start();
             rightOsc.start();
 
             effects[id] = { leftOsc, rightOsc, leftGain, rightGain, merger };
+            lastNode = merger;
             break;
           }
 
           case 'stereoPan': {
             const panner = ctx.createStereoPanner();
             panner.pan.setValueAtTime(effect.value / 100, ctx.currentTime);
+            panner.connect(lastNode);
             effects[id] = panner;
+            lastNode = panner;
             break;
           }
 
@@ -266,9 +270,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
             lfo.connect(lfoGain);
             lfoGain.connect(tremolo.gain);
+            tremolo.connect(lastNode);
             lfo.start();
 
             effects[id] = { tremolo, lfo, lfoGain };
+            lastNode = tremolo;
             break;
           }
 
@@ -293,28 +299,41 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             wetGain.gain.value = effect.value / 100;
             dryGain.gain.value = 1 - (effect.value / 100);
 
+            convolver.connect(wetGain);
+            wetGain.connect(lastNode);
+            dryGain.connect(lastNode);
+
             effects[id] = { convolver, wetGain, dryGain };
+            lastNode = convolver;
             break;
           }
         }
       }
     });
 
-    return effects;
+    return { effects, lastNode };
   }, [state.effects, state.channels]);
 
   const startAudio = useCallback(() => {
     if (!audioContext || !analyserNode) return;
 
     // Clean up existing nodes
-    oscillatorsRef.current.forEach(osc => osc.stop());
+    oscillatorsRef.current.forEach(osc => {
+      try {
+        osc.stop();
+        osc.disconnect();
+      } catch (e) {
+        console.warn('Error stopping oscillator:', e);
+      }
+    });
     oscillatorsRef.current = [];
     gainNodesRef.current = [];
+
     Object.values(effectNodesRef.current).forEach(nodes => {
       if (Array.isArray(nodes)) {
         nodes.forEach(node => {
-          if (node.stop) node.stop();
-          if (node.disconnect) node.disconnect();
+          if (node?.stop) node.stop();
+          if (node?.disconnect) node.disconnect();
         });
       } else if (nodes) {
         if (nodes.stop) nodes.stop();
@@ -323,24 +342,25 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
     effectNodesRef.current = {};
 
-    // Set up effect chain
-    const effectChain = setupEffectChain(audioContext, analyserNode);
-    effectNodesRef.current = effectChain;
+    try {
+      // Set up effect chain
+      const { effects, lastNode } = setupEffectChain(audioContext, analyserNode);
+      effectNodesRef.current = effects;
 
-    // Create oscillators for each channel
-    state.channels.forEach(channel => {
-      if (channel.enabled) {
-        const { oscillator, gainNode } = createOscillator(
-          channel,
-          audioContext,
-          effectChain.reverb?.convolver || effectChain.tremolo?.tremolo || analyserNode
-        );
-        oscillatorsRef.current.push(oscillator);
-        gainNodesRef.current.push(gainNode);
-      }
-    });
+      // Create oscillators for each channel
+      state.channels.forEach(channel => {
+        if (channel.enabled) {
+          const { oscillator, gainNode } = createOscillator(channel, audioContext, lastNode);
+          oscillatorsRef.current.push(oscillator);
+          gainNodesRef.current.push(gainNode);
+        }
+      });
 
-    setState(prev => ({ ...prev, isPlaying: true }));
+      setState(prev => ({ ...prev, isPlaying: true }));
+    } catch (error) {
+      console.error('Error starting audio:', error);
+      stopAudio();
+    }
   }, [audioContext, analyserNode, state.channels, createOscillator, setupEffectChain]);
 
   const stopAudio = useCallback(() => {
