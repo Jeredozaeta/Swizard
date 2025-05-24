@@ -11,7 +11,6 @@ const AudioFXPanel: React.FC = () => {
   const [isInactive, setIsInactive] = useState(false);
   const [inactivityTimer, setInactivityTimer] = useState<number | null>(null);
   
-  // Group effects by type
   const standardEffects = [
     'ringMod',
     'amplitudeMod',
@@ -67,21 +66,18 @@ const AudioFXPanel: React.FC = () => {
 
     const waveforms = ['sine', 'square', 'sawtooth', 'triangle'];
     const shuffledWaveforms = secureShuffleArray(waveforms);
-    const delay = 250; // Animation delay between updates
+    const delay = 250;
 
     try {
-      // Stop current playback if playing
       if (state.isPlaying) {
         togglePlayback();
       }
 
-      // Generate random frequencies for each channel
       for (const channel of state.channels) {
         if (!channel.enabled) continue;
         
         await new Promise(resolve => setTimeout(resolve, delay));
         
-        // Use golden ratios and harmonics for more musical frequencies
         const baseFreq = getSecureRandomNumber(50, 500);
         const harmonic = getSecureRandomNumber(1, 8);
         const frequency = baseFreq * harmonic;
@@ -92,17 +88,14 @@ const AudioFXPanel: React.FC = () => {
         });
       }
 
-      // Create random effect combinations
       for (const effect of Object.values(state.effects)) {
         await new Promise(resolve => setTimeout(resolve, delay));
         
-        // 40% chance to enable each effect for more complex sounds
         const shouldEnable = getSecureRandomBool(0.4);
         
         if (shouldEnable) {
           let randomValue;
           
-          // Special handling for certain effects to create more interesting sounds
           if (effect.id === 'binaural' || effect.id === 'shepard') {
             randomValue = getSecureRandomNumber(
               Math.ceil(effect.min / effect.step) + 2,
@@ -124,7 +117,6 @@ const AudioFXPanel: React.FC = () => {
         }
       }
 
-      // Start playback with new random sound
       if (!state.isPlaying) {
         togglePlayback();
       }
