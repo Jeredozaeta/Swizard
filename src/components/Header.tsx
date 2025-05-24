@@ -84,36 +84,46 @@ const Header: React.FC = () => {
     setOpenIndex(openIndex === index ? null : index);
   };
 
-  const handlePresetClick = (preset: typeof PRESETS[0]) => {
-    if (activePreset === preset.id) {
-      togglePlayback();
-      setActivePreset(null);
-    } else {
-      if (state.isPlaying) {
+  const handlePresetClick = async (preset: typeof PRESETS[0]) => {
+    try {
+      if (activePreset === preset.id) {
+        // If clicking the active preset, just toggle playback
         togglePlayback();
-      }
-      
-      // Update channel settings
-      updateChannel(1, {
-        frequency: preset.frequency,
-        waveform: preset.waveform,
-        enabled: true
-      });
+      } else {
+        // Stop current playback if any
+        if (state.isPlaying) {
+          togglePlayback();
+          await new Promise(resolve => setTimeout(resolve, 50)); // Small delay for clean transition
+        }
+        
+        // Update channel settings
+        updateChannel(1, {
+          frequency: preset.frequency,
+          waveform: preset.waveform,
+          enabled: true
+        });
 
-      // Reset all effects
-      Object.keys(state.effects).forEach(effectId => {
-        updateEffect(effectId, { enabled: false });
-      });
+        // Disable all effects first
+        Object.keys(state.effects).forEach(effectId => {
+          updateEffect(effectId, { enabled: false });
+        });
 
-      // Enable preset effects
-      Object.entries(preset.effects).forEach(([effectId, settings]) => {
-        updateEffect(effectId, settings);
-      });
+        // Enable preset effects
+        Object.entries(preset.effects).forEach(([effectId, settings]) => {
+          updateEffect(effectId, settings);
+        });
 
-      setTimeout(() => {
+        // Small delay to ensure all audio nodes are properly set up
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // Start playback and update active preset
         togglePlayback();
         setActivePreset(preset.id);
-      }, 100);
+      }
+    } catch (error) {
+      console.error('Error applying preset:', error);
+      // Reset state if there's an error
+      setActivePreset(null);
     }
   };
 
@@ -128,32 +138,37 @@ const Header: React.FC = () => {
         <p className="text-violet-200 opacity-90 mb-8">The real sound wizard</p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto px-4">
-          {PRESETS.map(preset => (
-            <button
-              key={preset.id}
-              onClick={() => handlePresetClick(preset)}
-              className={`group relative p-6 rounded-lg border transition-all duration-300 ${
-                activePreset === preset.id
-                  ? 'bg-gradient-to-br from-violet-600/20 to-fuchsia-600/20 border-violet-500/50 shadow-lg shadow-violet-500/20'
-                  : 'bg-[#1a0b2e]/50 border-violet-500/20 hover:border-violet-500/40 hover:shadow-lg hover:shadow-violet-500/10'
-              }`}
-            >
-              <div className="absolute top-3 right-3">
-                {activePreset === preset.id ? (
-                  <Pause className="h-5 w-5 text-violet-400" />
-                ) : (
-                  <Play className="h-5 w-5 text-violet-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                )}
-              </div>
-              
-              <h3 className="text-lg font-semibold text-violet-200 mb-2">{preset.name}</h3>
-              <p className="text-sm text-violet-300/70">{preset.description}</p>
-              
-              <div className="mt-4 text-xs font-mono text-violet-400/60">
-                {preset.frequency} Hz • {preset.waveform}
-              </div>
-            </button>
-          ))}
+          {PRESETS.map(preset => {
+            const isActive = activePreset === preset.id;
+            const isPlaying = isActive && state.isPlaying;
+
+            return (
+              <button
+                key={preset.id}
+                onClick={() => handlePresetClick(preset)}
+                className={`group relative p-6 rounded-lg border transition-all duration-300 ${
+                  isActive
+                    ? 'bg-gradient-to-br from-violet-600/20 to-fuchsia-600/20 border-violet-500/50 shadow-lg shadow-violet-500/20'
+                    : 'bg-[#1a0b2e]/50 border-violet-500/20 hover:border-violet-500/40 hover:shadow-lg hover:shadow-violet-500/10'
+                } ${isPlaying ? 'animate-pulse-gentle' : ''}`}
+              >
+                <div className="absolute top-3 right-3">
+                  {isPlaying ? (
+                    <Pause className="h-5 w-5 text-violet-400" />
+                  ) : (
+                    <Play className="h-5 w-5 text-violet-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  )}
+                </div>
+                
+                <h3 className="text-lg font-semibold text-violet-200 mb-2">{preset.name}</h3>
+                <p className="text-sm text-violet-300/70">{preset.description}</p>
+                
+                <div className="mt-4 text-xs font-mono text-violet-400/60">
+                  {preset.frequency} Hz • {preset.waveform}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </header>
 
