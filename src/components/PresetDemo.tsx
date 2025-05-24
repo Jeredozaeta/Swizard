@@ -293,3 +293,5 @@ const PresetDemo: React.FC = () => {
 };
 
 export default PresetDemo;
+
+export default PresetDemo
