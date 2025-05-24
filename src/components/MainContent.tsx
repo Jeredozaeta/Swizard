@@ -18,7 +18,6 @@ import EmailTestPanel from '../admin/EmailTestPanel';
 import EmailChecklist from '../admin/EmailChecklist';
 import VerifyAudio from '../admin/VerifyAudio';
 import { Zap } from 'lucide-react';
-import SoundInAction from './SoundInAction';
 
 const MainContent: React.FC = () => {
   const { id } = useParams();
@@ -133,8 +132,6 @@ const MainContent: React.FC = () => {
       <div className="max-w-5xl mx-auto px-4 py-6">
         <Header />
         <main>
-          <SoundInAction />
-          
           <div className={`rounded-xl ${
             performanceMode 
               ? 'bg-[#1a0b2e]/30' 
