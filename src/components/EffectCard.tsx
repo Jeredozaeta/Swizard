@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAudio } from '../context/AudioContext';
 import { AudioEffect } from '../types';
-import { Info, Volume2, Waveform, Waves, Music, Disc, Shuffle, GitBranch, Radio } from 'lucide-react';
+import { Info, Volume2, AudioWaveform as Waveform, Waves, Music, Disc, Shuffle, GitBranch, Radio } from 'lucide-react';
 
 interface EffectCardProps {
   effect: AudioEffect;
