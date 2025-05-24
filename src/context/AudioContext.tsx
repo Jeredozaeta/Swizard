@@ -8,6 +8,11 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
+const getAudioContext = () => {
+  if (typeof window === 'undefined') return null;
+  return window.AudioContext || window.webkitAudioContext;
+};
+
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
 
 const defaultState: AudioState = {
@@ -181,12 +186,23 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const setupAudioContext = useCallback(() => {
     if (!audioContext) {
-      const ctx = new AudioContext();
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 2048;
-      analyser.connect(ctx.destination);
-      setAudioContext(ctx);
-      setAnalyserNode(analyser);
+      try {
+        const AudioContextConstructor = getAudioContext();
+        if (!AudioContextConstructor) {
+          toast.error('Your browser does not support Web Audio API');
+          return;
+        }
+
+        const ctx = new AudioContextConstructor();
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 2048;
+        analyser.connect(ctx.destination);
+        setAudioContext(ctx);
+        setAnalyserNode(analyser);
+      } catch (error) {
+        console.error('Failed to initialize AudioContext:', error);
+        toast.error('Failed to initialize audio system');
+      }
     }
   }, [audioContext]);
 
@@ -270,11 +286,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       let data;
       
       if (id.startsWith('config=')) {
-        // Handle legacy config parameter
         const config = decodeURIComponent(id.replace('config=', ''));
         data = JSON.parse(atob(config));
       } else {
-        // Handle new preset IDs
         const { data: preset, error } = await supabase
           .from('presets')
           .select('data')
@@ -284,7 +298,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (error) throw error;
         data = preset.data;
 
-        // Increment views
         await supabase.rpc('increment_preset_views', { preset_id: id });
       }
 
