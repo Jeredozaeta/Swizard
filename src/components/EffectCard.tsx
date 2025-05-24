@@ -8,6 +8,11 @@ interface EffectCardProps {
 }
 
 const EffectCard: React.FC<EffectCardProps> = ({ effect }) => {
+  // Early return if effect is undefined
+  if (!effect) {
+    return null;
+  }
+
   const { updateEffect } = useAudio();
   
   const handleToggle = () => {
