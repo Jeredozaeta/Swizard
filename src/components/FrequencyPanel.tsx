@@ -52,7 +52,7 @@ const FrequencyPanel: React.FC = () => {
 
   return (
     <section className="mb-8">      
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mx-auto">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 mx-auto">
         {state.channels.map((channel) => (
           <div 
             key={channel.id} 
@@ -83,25 +83,29 @@ const FrequencyPanel: React.FC = () => {
               </div>
             </div>
             
-            <div className="mb-4">
-              <input
-                type="range"
-                value={channel.frequency}
-                onChange={(e) => handleFrequencyInput(channel.id, e.target.value)}
-                min="0"
-                max="20000"
-                step="1"
-                className={`w-full appearance-none bg-transparent 
-                  [&::-webkit-slider-runnable-track]:slider-track 
-                  [&::-webkit-slider-thumb]:slider-thumb 
-                  [&::-moz-range-track]:slider-track 
-                  [&::-moz-range-thumb]:slider-thumb
-                  ${state.isPlaying ? getIntensityClass(channel.frequency) : ''}`}
-                aria-label={`Frequency ${channel.id} slider`}
-              />
-              <div className="flex justify-between text-xs text-purple-400/70">
-                <span>0 Hz</span>
-                <span>20 kHz</span>
+            <div className="flex gap-4 mb-4">
+              <div className="flex flex-col items-center">
+                <input
+                  type="range"
+                  value={channel.frequency}
+                  onChange={(e) => handleFrequencyInput(channel.id, e.target.value)}
+                  min="0"
+                  max="20000"
+                  step="1"
+                  className={`h-48 -rotate-180 appearance-none bg-transparent 
+                    [&::-webkit-slider-runnable-track]:w-2 [&::-webkit-slider-runnable-track]:slider-track-vertical
+                    [&::-webkit-slider-thumb]:slider-thumb-vertical
+                    [&::-moz-range-track]:w-2 [&::-moz-range-track]:slider-track-vertical
+                    [&::-moz-range-thumb]:slider-thumb-vertical
+                    ${state.isPlaying ? getIntensityClass(channel.frequency) : ''}`}
+                  style={{ writingMode: 'bt-lr' }}
+                  aria-label={`Frequency ${channel.id} slider`}
+                />
+                <div className="flex flex-col items-center text-xs text-purple-400/70 mt-2">
+                  <span>20 kHz</span>
+                  <span className="my-1">↕</span>
+                  <span>0 Hz</span>
+                </div>
               </div>
             </div>
             
