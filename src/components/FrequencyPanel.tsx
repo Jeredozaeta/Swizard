@@ -15,7 +15,7 @@ const FrequencyPanel: React.FC = () => {
 
   const handleFrequencyInput = (channelId: number, value: string) => {
     const sanitizedValue = value.replace(/[^\d.]/g, '');
-    let freq = Math.min(Math.max(0, Number(sanitizedValue)), 20000);
+    let freq = Math.min(Math.max(0, Number(sanitizedValue)), 2000);
     if (isNaN(freq)) freq = 0;
     freq = Math.round(freq * 100) / 100;
     updateChannel(channelId, { frequency: freq });
@@ -28,7 +28,7 @@ const FrequencyPanel: React.FC = () => {
   };
 
   const getIntensityClass = (frequency: number) => {
-    const normalizedValue = frequency / 20000;
+    const normalizedValue = frequency / 2000;
     if (!state.isPlaying) return '';
     if (normalizedValue > 0.8) return 'effect-high';
     if (normalizedValue > 0.4) return 'effect-medium';
@@ -53,7 +53,7 @@ const FrequencyPanel: React.FC = () => {
   return (
     <section className="mb-8">      
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mx-auto">
-        {state.channels.map((channel) => (
+        {state.channels.slice(0, 2).map((channel) => (
           <div 
             key={channel.id} 
             className={`effect-card ${state.isPlaying ? 'effect-active' : ''} ${getIntensityClass(channel.frequency)}`}
@@ -83,12 +83,12 @@ const FrequencyPanel: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="relative h-44 flex items-center justify-center touch-none">
+                <div className="relative h-32 flex items-center justify-center touch-none">
                   <div className="absolute left-0 h-full flex flex-col justify-between text-xs text-purple-400/70">
-                    <span>20k</span>
-                    <span>15k</span>
-                    <span>10k</span>
-                    <span>5k</span>
+                    <span>2k</span>
+                    <span>1.5k</span>
+                    <span>1k</span>
+                    <span>500</span>
                     <span>0</span>
                   </div>
                   
@@ -98,9 +98,9 @@ const FrequencyPanel: React.FC = () => {
                       value={channel.frequency}
                       onChange={(e) => handleFrequencyInput(channel.id, e.target.value)}
                       min="0"
-                      max="20000"
+                      max="2000"
                       step="1"
-                      className="h-full -rotate-90 appearance-none bg-transparent w-44
+                      className="h-full -rotate-90 appearance-none bg-transparent w-32
                         [&::-webkit-slider-runnable-track]:w-full
                         [&::-webkit-slider-runnable-track]:h-2
                         [&::-webkit-slider-runnable-track]:rounded-full
@@ -136,7 +136,7 @@ const FrequencyPanel: React.FC = () => {
                   </div>
 
                   <div className="absolute right-0 h-full w-1 bg-purple-500/20 rounded-full">
-                    <div className="absolute inset-x-0 h-1 bg-purple-500/40 rounded-full" style={{ bottom: `${(channel.frequency / 20000) * 100}%` }} />
+                    <div className="absolute inset-x-0 h-1 bg-purple-500/40 rounded-full" style={{ bottom: `${(channel.frequency / 2000) * 100}%` }} />
                   </div>
                 </div>
               </div>
