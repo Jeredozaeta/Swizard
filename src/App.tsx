@@ -25,7 +25,7 @@ const App: React.FC = () => {
                 <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-[#030014] to-transparent p-4">
                   <LegalDisclaimer />
                 </div>
-                <div className="pt-32">
+                <div>
                   <Routes>
                     <Route path="/" element={<Navigate to="/app" replace />} />
                     <Route path="/app" element={<MainContent />} />
