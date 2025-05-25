@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, Volume2, Music, Waves, Brain } from 'lucide-react';
 import { toast } from 'react-toastify';
 
