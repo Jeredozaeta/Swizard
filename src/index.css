@@ -321,14 +321,14 @@ body {
 
 @media (max-width: 640px) {
   .effect-card {
-    @apply border-0 shadow-none;
+    @apply border-0 shadow-none rounded-xl p-3;
     animation: none;
   }
   .btn {
     transform: none !important;
   }
   .effect-card.effect-active {
-    @apply border-0 shadow-none;
+    @apply border-0 shadow-none bg-gradient-to-br from-[#1a0b2e]/60 to-[#0f0720]/60;
   }
 }
 
