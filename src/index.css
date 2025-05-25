@@ -313,26 +313,27 @@ body {
 /* Mobile-optimized cards */
 .effect-card {
   @apply flex flex-col space-y-2 p-3 rounded-lg
-    border border-violet-500/20
     bg-gradient-to-br from-[#1a0b2e]/40 to-[#0f0720]/40
     hover:from-[#1a0b2e]/60 hover:to-[#0f0720]/60
-    hover:border-violet-500/30
     transition-all duration-300 ease-out;
   touch-action: manipulation;
 }
 
-/* Optimize animations for mobile */
 @media (max-width: 640px) {
   .effect-card {
+    @apply border-0 shadow-none;
     animation: none;
   }
   .btn {
     transform: none !important;
   }
+  .effect-card.effect-active {
+    @apply border-0 shadow-none;
+  }
 }
 
 .effect-active {
-  @apply border-violet-500/40 shadow-lg;
+  @apply shadow-lg;
 }
 
 .effect-low {
