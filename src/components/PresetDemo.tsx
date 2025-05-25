@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Play, Pause, Volume2, Music, Waves, Brain } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -162,7 +162,6 @@ const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Ic
       audioContextRef.current = null;
       setIsPlaying(false);
     } else {
-      // Show safety reminder
       toast.info(
         'Please use headphones and start at a low volume. Stop immediately if you experience any discomfort.',
         {
@@ -178,11 +177,10 @@ const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Ic
 
       oscillatorRef.current.type = waveform;
       oscillatorRef.current.frequency.setValueAtTime(frequency, audioContextRef.current.currentTime);
-      gainNodeRef.current.gain.setValueAtTime(0.3, audioContextRef.current.currentTime); // Start at lower volume
+      gainNodeRef.current.gain.setValueAtTime(0.3, audioContextRef.current.currentTime);
 
       oscillatorRef.current.connect(gainNodeRef.current);
 
-      // Set up effects chain
       let currentNode: AudioNode = gainNodeRef.current;
       currentNode = setupTremolo(audioContextRef.current, currentNode);
       currentNode = setupStereoPan(audioContextRef.current, currentNode);
@@ -191,7 +189,6 @@ const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Ic
       currentNode = setupPan360(audioContextRef.current, currentNode);
       currentNode = setupIsoPulses(audioContextRef.current, currentNode);
       
-      // Connect final node to output
       currentNode.connect(audioContextRef.current.destination);
       
       oscillatorRef.current.start();
@@ -200,15 +197,15 @@ const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Ic
   };
 
   return (
-    <div className="bg-gradient-to-br from-violet-900/20 to-fuchsia-900/20 rounded-lg border border-purple-500/20 p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <Icon className="h-5 w-5 text-purple-400" />
-          <h3 className="text-lg font-semibold text-purple-200">{title}</h3>
+    <div className="bg-gradient-to-br from-violet-900/20 to-fuchsia-900/20 rounded-lg border border-purple-500/20 p-4 md:p-6">
+      <div className="flex items-center justify-between mb-2 md:mb-4">
+        <div className="flex items-center gap-2 md:gap-3">
+          <Icon className="h-4 w-4 md:h-5 md:w-5 text-purple-400" />
+          <h3 className="text-base md:text-lg font-semibold text-purple-200">{title}</h3>
         </div>
         <button
           onClick={togglePlayback}
-          className={`p-2 rounded-lg transition-colors ${
+          className={`p-1.5 md:p-2 rounded-lg transition-colors ${
             isPlaying
               ? 'bg-purple-600/30 hover:bg-purple-600/40 text-purple-200'
               : 'bg-purple-600/20 hover:bg-purple-600/30 text-purple-300'
@@ -216,16 +213,16 @@ const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Ic
           title={isPlaying ? 'Stop' : 'Play'}
         >
           {isPlaying ? (
-            <Pause className="h-4 w-4" />
+            <Pause className="h-3 w-3 md:h-4 md:w-4" />
           ) : (
-            <Play className="h-4 w-4" />
+            <Play className="h-3 w-3 md:h-4 md:w-4" />
           )}
         </button>
       </div>
-      <p className="text-purple-200/80">{description}</p>
+      <p className="text-sm md:text-base text-purple-200/80">{description}</p>
       {effects && (
-        <div className="mt-4 pt-4 border-t border-purple-500/20">
-          <p className="text-sm text-purple-300/70">
+        <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-purple-500/20">
+          <p className="text-xs md:text-sm text-purple-300/70">
             Effects: {[
               effects.tremolo && 'Tremolo',
               effects.stereoPan && 'Stereo Pan',
@@ -244,7 +241,7 @@ const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Ic
 const PresetDemo: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto px-4 mb-16">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <Preset
           frequency={432}
           title="432 Hz Healing"

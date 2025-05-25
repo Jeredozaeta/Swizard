@@ -8,7 +8,6 @@ interface EffectCardProps {
 }
 
 const EffectCard: React.FC<EffectCardProps> = ({ effect }) => {
-  // Early return if effect is undefined
   if (!effect) {
     return null;
   }
@@ -58,9 +57,9 @@ const EffectCard: React.FC<EffectCardProps> = ({ effect }) => {
 
   return (
     <div className={`effect-card ${effect.enabled ? 'effect-active' : ''} ${getIntensityClass()}`}>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4 md:mb-6">
         <div className="flex items-center gap-1">
-          <h3 className="text-sm font-medium text-purple-200">{effect.name}</h3>
+          <h3 className="text-xs md:text-sm font-medium text-purple-200">{effect.name}</h3>
           <div className="has-tooltip">
             <Info className="h-3 w-3 info-icon" />
             <div className="tooltip -translate-y-full -translate-x-1/2 left-1/2 top-0 w-48 text-xs">
