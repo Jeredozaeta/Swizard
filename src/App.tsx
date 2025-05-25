@@ -22,7 +22,7 @@ const App: React.FC = () => {
           <StripeProvider>
             <AudioProvider>
               <div className="relative">
-                <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-[#030014] to-transparent p-4">
+                <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-[#030014] to-transparent">
                   <LegalDisclaimer />
                 </div>
                 <div>
