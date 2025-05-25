@@ -45,7 +45,7 @@ const Header: React.FC = () => {
 
   return (
     <>
-      <header className="mb-12 text-center">
+      <header className="mb-8 md:mb-12 text-center">
         <div className="flex items-center justify-center gap-3 mb-4">
           <h1 className="text-5xl font-bold bg-gradient-to-r from-violet-500 to-fuchsia-400 bg-clip-text text-transparent">
             Swizard
@@ -62,16 +62,16 @@ const Header: React.FC = () => {
 
       <PresetDemo />
 
-      <section className="mb-20 py-16 bg-gradient-to-b from-[#1a0b2e]/50 to-transparent">
+      <section className="mb-8 md:mb-20 py-8 md:py-16 bg-gradient-to-b from-[#1a0b2e]/50 to-transparent">
         <div className="max-w-3xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-3 bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
+          <h2 className="text-2xl md:text-3xl font-bold text-center mb-2 md:mb-3 bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
             Experience the Power of Sound
           </h2>
-          <p className="text-center text-violet-200/80 mb-12">
+          <p className="text-center text-violet-200/80 mb-6 md:mb-12">
             Start creating transformative sound experiences with professional-grade tools
           </p>
           
-          <div className="space-y-3">
+          <div className="space-y-2 md:space-y-3">
             {FAQ_ITEMS.map((item, index) => {
               const Icon = item.icon;
               return (
@@ -81,17 +81,17 @@ const Header: React.FC = () => {
                 >
                   <button
                     onClick={() => toggleQuestion(index)}
-                    className="w-full px-6 py-4 text-left flex items-center justify-between gap-4 hover:bg-purple-500/5 transition-colors"
+                    className="w-full px-4 md:px-6 py-3 md:py-4 text-left flex items-center justify-between gap-4 hover:bg-purple-500/5 transition-colors"
                   >
-                    <div className="flex items-center gap-3">
-                      <Icon className="h-5 w-5 text-purple-400" />
-                      <span className="text-purple-200 font-medium">{item.question}</span>
+                    <div className="flex items-center gap-2 md:gap-3">
+                      <Icon className="h-4 w-4 md:h-5 md:w-5 text-purple-400" />
+                      <span className="text-sm md:text-base text-purple-200 font-medium">{item.question}</span>
                     </div>
                     <div className="flex-shrink-0">
                       {openIndex === index ? (
-                        <Minus className="h-5 w-5 text-purple-400" />
+                        <Minus className="h-4 w-4 md:h-5 md:w-5 text-purple-400" />
                       ) : (
-                        <Plus className="h-5 w-5 text-purple-400" />
+                        <Plus className="h-4 w-4 md:h-5 md:w-5 text-purple-400" />
                       )}
                     </div>
                   </button>
@@ -103,8 +103,8 @@ const Header: React.FC = () => {
                         : 'max-h-0 opacity-0'
                     } overflow-hidden`}
                   >
-                    <div className="px-6 py-4 border-t border-purple-500/20">
-                      <p className="text-purple-200/80 leading-relaxed">{item.answer}</p>
+                    <div className="px-4 md:px-6 py-3 md:py-4 border-t border-purple-500/20">
+                      <p className="text-sm md:text-base text-purple-200/80 leading-relaxed">{item.answer}</p>
                     </div>
                   </div>
                 </div>
