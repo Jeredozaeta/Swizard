@@ -51,24 +51,24 @@ const FrequencyPanel: React.FC = () => {
   };
 
   return (
-    <section className="mb-8">      
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mx-auto">
+    <section className="mb-6 md:mb-8">      
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         {state.channels.map((channel) => (
           <div 
             key={channel.id} 
             className={`effect-card ${state.isPlaying ? 'effect-active' : ''} ${getIntensityClass(channel.frequency)}`}
           >
-            <div className="flex items-center justify-center mb-3">
-              <h3 className="font-medium text-purple-200">Frequency {channel.id}</h3>
+            <div className="flex items-center justify-center mb-2 md:mb-3">
+              <h3 className="text-sm md:text-base font-medium text-purple-200">Frequency {channel.id}</h3>
             </div>
             
-            <div className="flex justify-center mb-4">
-              <div className="relative bg-[#1e1e2f] rounded-lg px-4 py-2 text-sm font-mono w-3/4 text-center border border-purple-500/20">
+            <div className="flex justify-center mb-3 md:mb-4">
+              <div className="relative bg-[#1e1e2f] rounded-lg px-3 md:px-4 py-1.5 md:py-2 text-sm font-mono w-full md:w-3/4 text-center border border-purple-500/20">
                 <input
                   type="text"
                   value={channel.frequency}
                   onChange={(e) => handleFrequencyInput(channel.id, e.target.value)}
-                  className="w-full bg-transparent text-center text-white focus:outline-none"
+                  className="w-full bg-transparent text-center text-white focus:outline-none text-sm md:text-base"
                   onBlur={(e) => handleFrequencyInput(channel.id, e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
@@ -83,7 +83,7 @@ const FrequencyPanel: React.FC = () => {
               </div>
             </div>
             
-            <div className="mb-4">
+            <div className="mb-3 md:mb-4">
               <input
                 type="range"
                 value={channel.frequency}
@@ -109,7 +109,7 @@ const FrequencyPanel: React.FC = () => {
               <select
                 value={channel.waveform}
                 onChange={(e) => handleWaveformChange(channel.id, e.target.value)}
-                className={`w-full bg-[#1e1e2f] text-white border border-purple-500/20 rounded-lg pl-9 pr-4 py-2.5 text-base
+                className={`w-full bg-[#1e1e2f] text-white border border-purple-500/20 rounded-lg pl-8 md:pl-9 pr-3 md:pr-4 py-2 text-sm md:text-base
                   appearance-none cursor-pointer
                   focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30
                   hover:border-purple-500/50 transition-colors duration-200
