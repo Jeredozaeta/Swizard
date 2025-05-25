@@ -1,22 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Play, Pause, Volume2, Music, Waves, Brain } from 'lucide-react';
 import { toast } from 'react-toastify';
-
-interface PresetProps {
-  frequency: number;
-  title: string;
-  description: string;
-  icon: React.ElementType;
-  waveform?: OscillatorType;
-  effects?: {
-    tremolo?: { frequency: number; depth: number };
-    stereoPan?: { frequency: number };
-    phaser?: { frequency: number; depth: number };
-    amplitudeMod?: { frequency: number; depth: number };
-    pan360?: { frequency: number };
-    isoPulses?: { frequency: number; depth: number };
-  };
-}
 
 const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Icon, waveform = 'sine', effects }) => {
   const [isPlaying, setIsPlaying] = useState(false);
