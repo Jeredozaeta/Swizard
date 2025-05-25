@@ -244,8 +244,8 @@ const WaveformOutput: React.FC<WaveformOutputProps> = ({ performanceMode }) => {
   }, [performanceMode]);
 
   return (
-    <section className="mb-4">
-      <div className="bg-[#0f0720]/50 rounded-lg border border-purple-500/20 overflow-hidden w-3/4 mx-auto">
+    <section className="mb-4 w-full">
+      <div className="bg-[#0f0720]/50 rounded-lg border border-purple-500/20 overflow-hidden w-full md:w-3/4 mx-auto">
         <canvas 
           ref={canvasRef} 
           className="w-full h-16"
