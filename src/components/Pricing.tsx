@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useStripe } from '../context/StripeContext';
 import { toast } from 'react-toastify';
-import { Sparkles, Zap, Crown, ArrowRight, Check, ChevronDown, ChevronUp, Minus, ArrowLeft, Clock } from 'lucide-react';
+import { Sparkles, Zap, Crown, ArrowRight, Check, ChevronDown, ChevronUp, Minus, ArrowLeft, Clock, Star, Rocket, Shield } from 'lucide-react';
 import { STRIPE_PRODUCTS, ProductId } from '../stripe-config';
 import { supabase } from '../lib/supabase';
 
@@ -15,17 +15,17 @@ const plans = [
     price: '$0',
     period: 'forever',
     priceId: 'free_plan',
-    description: 'Explore and experiment without limits',
+    description: 'Start your sound journey',
     features: [
-      'Core frequency generator',
+      'Basic frequency generator',
       'Standard waveform visualizer',
       '3 starter presets',
       'Preview-quality WAV export',
       'No credit card required'
     ],
-    cta: 'Try It Instantly',
+    cta: 'Create Your First Sound Now',
     ctaIcon: Sparkles,
-    ctaColor: 'bg-violet-600/20 hover:bg-violet-600/30 text-violet-300'
+    ctaColor: 'bg-transparent border border-violet-500/30 hover:bg-violet-500/10 text-violet-300'
   },
   {
     name: 'Pro Monthly',
@@ -34,142 +34,64 @@ const plans = [
     priceId: STRIPE_PRODUCTS.monthly.priceId,
     description: 'Unlock your full creative potential',
     popular: true,
-    features: [
-      '14+ studio-grade effects',
-      'Real-time waveform sculpting',
-      'Unlimited custom presets',
-      'HD WAV + MP4 export',
-      'Cancel anytime'
+    featureGroups: [
+      {
+        title: 'Creativity Tools',
+        icon: Star,
+        features: [
+          '14+ studio-grade effects',
+          'Real-time waveform sculpting',
+          'Unlimited custom presets'
+        ]
+      },
+      {
+        title: 'Professional Control',
+        icon: Shield,
+        features: [
+          'Advanced parameter control',
+          'Enhanced audio fidelity',
+          'Customizable effect chains'
+        ]
+      },
+      {
+        title: 'Monetization',
+        icon: Rocket,
+        features: [
+          'HD WAV + MP4 export',
+          'Commercial use license',
+          'Priority support'
+        ]
+      }
     ],
-    cta: 'Start Creating Like a Pro',
+    cta: 'Unlock With Pro',
+    ctaSubtext: 'Best for creators getting started • Cancel anytime',
     ctaIcon: Zap,
     ctaColor: 'bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white'
   },
   {
-    name: 'Pro Yearly',
+    name: 'Pro 6-Month',
     price: '$88',
-    period: '/year',
+    period: 'every 6 months',
     priceId: STRIPE_PRODUCTS.yearly.priceId,
     description: 'Maximum value. Early access. Ultimate freedom.',
+    savings: 'Save 33%',
     features: [
-      'Everything in Monthly',
+      'Everything in Monthly plan',
       'Early access to AI features',
       'Priority feature unlocks',
       'Premium preset templates',
       'One-time payment'
     ],
-    savings: 'Save 60%',
-    cta: 'Get the Full Toolkit',
+    cta: 'Go All In – Save 33%',
+    ctaSubtext: 'Best value • Ideal for long-term sound monetizers',
     ctaIcon: Crown,
     ctaColor: 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white'
-  }
-];
-
-const featureCategories = [
-  {
-    name: 'Core Features',
-    features: [
-      {
-        name: 'Frequency Generator',
-        free: 'Basic',
-        pro: 'Advanced',
-        yearly: 'Advanced'
-      },
-      {
-        name: 'Waveform Visualizer',
-        free: 'Standard',
-        pro: 'HD Real-time',
-        yearly: 'HD Real-time'
-      },
-      {
-        name: 'Sound Presets',
-        free: '3 Basic',
-        pro: 'Unlimited',
-        yearly: 'Unlimited + Exclusive'
-      }
-    ]
-  },
-  {
-    name: 'Sound Effects',
-    features: [
-      {
-        name: 'Basic Effects',
-        free: '2',
-        pro: 'All 14+',
-        yearly: 'All 14+'
-      },
-      {
-        name: 'Real-time Sculpting',
-        free: false,
-        pro: true,
-        yearly: true
-      },
-      {
-        name: 'Effect Chaining',
-        free: false,
-        pro: true,
-        yearly: true
-      },
-      {
-        name: 'AI-powered Effects',
-        free: false,
-        pro: false,
-        yearly: 'Early Access'
-      }
-    ]
-  },
-  {
-    name: 'Export Options',
-    features: [
-      {
-        name: 'WAV Export',
-        free: 'Preview Quality',
-        pro: 'HD Quality',
-        yearly: 'HD Quality'
-      },
-      {
-        name: 'MP4 Export',
-        free: false,
-        pro: true,
-        yearly: true
-      },
-      {
-        name: 'Batch Export',
-        free: false,
-        pro: true,
-        yearly: true
-      }
-    ]
-  },
-  {
-    name: 'Additional Features',
-    features: [
-      {
-        name: 'Custom Templates',
-        free: false,
-        pro: '5',
-        yearly: 'Unlimited'
-      },
-      {
-        name: 'Share & Embed',
-        free: 'Basic Links',
-        pro: 'Advanced',
-        yearly: 'Advanced'
-      },
-      {
-        name: 'Priority Support',
-        free: false,
-        pro: true,
-        yearly: true
-      }
-    ]
   }
 ];
 
 const Pricing: React.FC<PricingProps> = ({ onClose }) => {
   const { createCheckoutSession } = useStripe();
   const [loading, setLoading] = useState(false);
-  const [showComparison, setShowComparison] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [hasSubscription, setHasSubscription] = useState(false);
   const [subscriptionDetails, setSubscriptionDetails] = useState<{
@@ -189,7 +111,6 @@ const Pricing: React.FC<PricingProps> = ({ onClose }) => {
           return;
         }
 
-        // Check if there's an active subscription in the results
         const activeSubscription = subscriptions?.find(sub => 
           sub.subscription_status === 'active' || 
           sub.subscription_status === 'trialing'
@@ -302,10 +223,9 @@ const Pricing: React.FC<PricingProps> = ({ onClose }) => {
           </div>
         )}
 
-        <div className="relative flex flex-col md:flex-row gap-4 items-stretch justify-center">
+        <div className="space-y-4 md:space-y-0 md:flex md:gap-4">
           {plans.map((plan, index) => {
             const Icon = plan.ctaIcon;
-            const isMiddle = index === 1;
             const isSelected = selectedPlan === plan.priceId;
             const isDisabled = hasSubscription && plan.priceId !== 'free_plan';
             
@@ -313,19 +233,19 @@ const Pricing: React.FC<PricingProps> = ({ onClose }) => {
               <div
                 key={plan.name}
                 className={`w-full md:w-1/3 ${
-                  isMiddle ? 'md:-mt-4 z-10' : ''
-                } transition-all duration-300`}
+                  plan.popular ? 'order-first md:order-none' : ''
+                }`}
               >
                 <div
                   className={`relative h-full rounded-xl border transition-all duration-300 ${
-                    isMiddle
-                      ? 'border-violet-500/50 bg-gradient-to-b from-violet-900/20 to-fuchsia-900/20 scale-[1.02] shadow-lg shadow-violet-500/20'
+                    plan.popular
+                      ? 'border-violet-500/50 bg-gradient-to-b from-violet-900/20 to-fuchsia-900/20 scale-100 md:scale-[1.02] shadow-lg shadow-violet-500/20'
                       : 'border-violet-500/20 bg-gradient-to-b from-[#1a0b2e]/40 to-[#0f0720]/40'
                   } p-6`}
                 >
-                  {isMiddle && (
+                  {plan.popular && (
                     <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-violet-600 to-fuchsia-600 px-3 py-0.5 rounded-full text-xs font-medium text-white shadow-lg">
-                      Most Popular
+                      Most Popular • Cancel Anytime
                     </div>
                   )}
                   {plan.savings && (
@@ -347,14 +267,38 @@ const Pricing: React.FC<PricingProps> = ({ onClose }) => {
                     </p>
                   </div>
 
-                  <ul className="space-y-3 mb-6">
-                    {plan.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-center gap-2 text-sm text-violet-200/90">
-                        <Check className="h-4 w-4 text-violet-400 flex-shrink-0" />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  {plan.featureGroups ? (
+                    <div className="space-y-6 mb-6">
+                      {plan.featureGroups.map((group, idx) => {
+                        const GroupIcon = group.icon;
+                        return (
+                          <div key={idx}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <GroupIcon className="h-4 w-4 text-violet-400" />
+                              <h4 className="text-sm font-semibold text-violet-300">{group.title}</h4>
+                            </div>
+                            <ul className="space-y-2">
+                              {group.features.map((feature, featureIdx) => (
+                                <li key={featureIdx} className="flex items-center gap-2 text-sm text-violet-200/90">
+                                  <Check className="h-4 w-4 text-violet-400 flex-shrink-0" />
+                                  <span>{feature}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <ul className="space-y-3 mb-6">
+                      {plan.features.map((feature, idx) => (
+                        <li key={idx} className="flex items-center gap-2 text-sm text-violet-200/90">
+                          <Check className="h-4 w-4 text-violet-400 flex-shrink-0" />
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
 
                   <div className="mt-auto">
                     <button
@@ -372,9 +316,9 @@ const Pricing: React.FC<PricingProps> = ({ onClose }) => {
                       </span>
                       {!isSelected && !isDisabled && <ArrowRight className="h-4 w-4" />}
                     </button>
-                    {plan.priceId !== 'free_plan' && (
+                    {plan.ctaSubtext && (
                       <p className="text-center text-violet-300/60 text-xs mt-2">
-                        Cancel anytime
+                        {plan.ctaSubtext}
                       </p>
                     )}
                   </div>
@@ -384,85 +328,12 @@ const Pricing: React.FC<PricingProps> = ({ onClose }) => {
           })}
         </div>
 
-        <div className="mt-8 text-center">
-          <button
-            onClick={() => setShowComparison(!showComparison)}
-            className="inline-flex items-center gap-1.5 text-violet-300 hover:text-violet-200 transition-colors text-sm"
-          >
-            {showComparison ? 'Hide' : 'Compare'} Plans in Detail
-            {showComparison ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
-          </button>
-
-          {showComparison && (
-            <div className="mt-6 bg-indigo-900/30 rounded-lg border border-violet-500/20 p-4 overflow-x-auto">
-              <table className="w-full min-w-[600px]">
-                <thead>
-                  <tr className="border-b border-violet-500/20">
-                    <th className="py-2 px-4 text-left text-violet-300 font-medium">Features</th>
-                    <th className="py-2 px-4 text-center text-violet-300 font-medium">Free</th>
-                    <th className="py-2 px-4 text-center text-violet-300 font-medium">Pro Monthly</th>
-                    <th className="py-2 px-4 text-center text-violet-300 font-medium">Pro Yearly</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {featureCategories.map((category, categoryIndex) => (
-                    <React.Fragment key={category.name}>
-                      <tr>
-                        <td
-                          colSpan={4}
-                          className="py-4 px-4 text-sm font-medium text-violet-400"
-                        >
-                          {category.name}
-                        </td>
-                      </tr>
-                      {category.features.map((feature, featureIndex) => (
-                        <tr
-                          key={`${categoryIndex}-${featureIndex}`}
-                          className="border-t border-violet-500/10"
-                        >
-                          <td className="py-2 px-4 text-sm text-violet-200">
-                            {feature.name}
-                          </td>
-                          <td className="py-2 px-4 text-center">
-                            {renderFeatureValue(feature.free)}
-                          </td>
-                          <td className="py-2 px-4 text-center">
-                            {renderFeatureValue(feature.pro)}
-                          </td>
-                          <td className="py-2 px-4 text-center">
-                            {renderFeatureValue(feature.yearly)}
-                          </td>
-                        </tr>
-                      ))}
-                    </React.Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
         <p className="text-center text-violet-300/60 text-xs mt-6">
           You can switch or cancel your plan anytime. All payments secure and encrypted.
         </p>
       </div>
     </div>
   );
-};
-
-const renderFeatureValue = (value: string | boolean) => {
-  if (typeof value === 'boolean') {
-    return value ? (
-      <Check className="h-5 w-5 text-emerald-400 mx-auto" />
-    ) : (
-      <Minus className="h-5 w-5 text-violet-500/50 mx-auto" />
-    );
-  }
-  return <span className="text-violet-200">{value}</span>;
 };
 
 export default Pricing;
