@@ -45,8 +45,8 @@ const Header: React.FC = () => {
 
   return (
     <>
-      <header className="mb-12 text-center">
-        <div className="flex items-center justify-center gap-3 mb-4">
+      <header className="mb-8 text-center">
+        <div className="flex items-center justify-center gap-3">
           <h1 className="text-5xl font-bold bg-gradient-to-r from-violet-500 to-fuchsia-400 bg-clip-text text-transparent">
             Swizard
           </h1>
