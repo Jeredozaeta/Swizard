@@ -1,6 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, Volume2, Music, Waves, Brain } from 'lucide-react';
 import { toast } from 'react-toastify';
+
+interface PresetProps {
+  frequency: number;
+  title: string;
+  description: string;
+  icon: React.ElementType;
+  waveform?: OscillatorType;
+  effects?: {
+    tremolo?: { frequency: number; depth: number };
+    stereoPan?: { frequency: number };
+    phaser?: { frequency: number; depth: number };
+    amplitudeMod?: { frequency: number; depth: number };
+    pan360?: { frequency: number };
+    isoPulses?: { frequency: number; depth: number };
+  };
+}
 
 const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Icon, waveform = 'sine', effects }) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -228,7 +244,7 @@ const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Ic
 const PresetDemo: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto px-4 mb-16">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Preset
           frequency={432}
           title="432 Hz Healing"
