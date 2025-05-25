@@ -335,20 +335,20 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
 
   return (
     <section className="mb-6">      
-      <div className="flex justify-center gap-3 mb-8">
+      <div className="flex flex-nowrap overflow-x-auto md:overflow-visible md:flex-wrap justify-center gap-2 md:gap-3 px-4 md:px-0 -mx-4 md:mx-0 pb-4 md:pb-0 mb-4 md:mb-8">
         <button
           onClick={togglePlayback}
-          className="btn btn-primary btn-sm"
+          className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0"
         >
           <Play className="h-4 w-4" />
           {state.isPlaying ? 'Stop' : 'Play'}
         </button>
         
-        <div className="relative">
+        <div className="relative flex-shrink-0">
           <button
             onClick={handleDownload}
             disabled={downloading || selectedDuration < 30 || exportStatus === 'error' || exportStatus === 'rendering'}
-            className={`btn btn-primary btn-sm bg-gradient-to-r ${
+            className={`btn btn-primary btn-sm whitespace-nowrap bg-gradient-to-r ${
               exportStatus === 'ready'
                 ? 'from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500'
                 : 'from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500'
@@ -369,7 +369,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
 
         <button
           onClick={handleShare}
-          className={`btn btn-primary btn-sm ${hasChanges ? 'animate-attention' : ''}`}
+          className={`btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 ${hasChanges ? 'animate-attention' : ''}`}
           title="Share your creation to inspire others"
         >
           <Sparkles className="h-4 w-4" />
@@ -378,7 +378,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         
         <button
           onClick={onShowPricing}
-          className="btn btn-primary btn-sm"
+          className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0"
         >
           <Crown className="h-4 w-4" />
           Go Pro
