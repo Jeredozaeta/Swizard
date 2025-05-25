@@ -55,21 +55,6 @@
     padding-top: 0.75rem;
     padding-bottom: 0.75rem;
   }
-  
-  input[type="range"] {
-    min-height: 44px;
-    touch-action: none;
-  }
-  
-  input[type="range"]::-webkit-slider-thumb {
-    min-width: 44px;
-    min-height: 44px;
-  }
-  
-  input[type="range"]::-moz-range-thumb {
-    min-width: 44px;
-    min-height: 44px;
-  }
 }
 
 @keyframes magical-text {
@@ -146,7 +131,6 @@ body {
   background-size: 200% 200%;
   animation: gradientBG 10s ease infinite;
   -webkit-tap-highlight-color: transparent;
-  overscroll-behavior-y: none;
 }
 
 /* Optimize animations for reduced motion */
@@ -425,24 +409,5 @@ body {
   }
   .mb-8 {
     margin-bottom: 1.5rem;
-  }
-}
-
-/* Vertical range input styles */
-input[type="range"].vertical-range {
-  writing-mode: bt-lr; /* IE */
-  -webkit-appearance: slider-vertical; /* Chromium */
-  width: 8px;
-  height: 175px;
-  padding: 0 5px;
-}
-
-@supports (-webkit-touch-callout: none) {
-  input[type="range"].vertical-range {
-    position: relative;
-    transform-origin: center;
-    transform: rotate(-90deg);
-    width: 175px;
-    height: 8px;
   }
 }
