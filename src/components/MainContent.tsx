@@ -137,30 +137,6 @@ const MainContent: React.FC = () => {
                 {showWaveform && <WaveformOutput performanceMode={performanceMode} />}
                 <FrequencyPanel />
                 <AudioFXPanel />
-                <div className="flex justify-center gap-4 mb-6">
-                  <button
-                    onClick={() => setShowWaveform(!showWaveform)}
-                    className="btn btn-secondary btn-sm"
-                  >
-                    {showWaveform ? 'Hide Waveform' : 'Show Waveform'}
-                  </button>
-                  <div className="has-tooltip">
-                    <button
-                      onClick={() => setPerformanceMode(!performanceMode)}
-                      className={`btn btn-sm ${
-                        performanceMode
-                          ? 'bg-amber-600/20 text-amber-300 hover:bg-amber-600/30'
-                          : 'btn-secondary'
-                      }`}
-                    >
-                      <Zap className="h-4 w-4" />
-                      {performanceMode ? 'Disable Performance Mode' : 'Enable Performance Mode'}
-                    </button>
-                    <div className="tooltip -translate-y-full -translate-x-1/2 left-1/2 top-0 w-64 text-xs">
-                      Use this if the app feels slow or laggy — it'll speed things up by simplifying visual effects.
-                    </div>
-                  </div>
-                </div>
                 <DurationPanel 
                   selectedDuration={selectedDuration} 
                   onDurationChange={setSelectedDuration} 

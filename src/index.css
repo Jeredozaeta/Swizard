@@ -1,34 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* Add these new styles for vertical sliders */
-.slider-track-vertical {
-  background: rgba(139, 92, 246, 0.2);
-  border-radius: 4px;
-  height: 100%;
-}
-
-.slider-thumb-vertical {
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  background: #8b5cf6;
-  border: 2px solid #fff;
-  border-radius: 50%;
-  cursor: pointer;
-  margin-top: -6px;
-  margin-left: -7px;
-  transition: all 0.2s;
-}
-
-.slider-thumb-vertical:hover {
-  background: #9f75ff;
-  transform: scale(1.1);
-}
-
-.slider-thumb-vertical:active {
-  transform: scale(0.95);
-}
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
