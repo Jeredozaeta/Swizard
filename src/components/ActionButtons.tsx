@@ -225,14 +225,18 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
           {state.isPlaying ? 'Stop' : 'Play'}
         </button>
         
-        <button
-          onClick={handleExport}
-          disabled={exporting || selectedDuration < 30}
-          className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 shadow-lg hover:shadow-xl transition-all duration-300"
-        >
-          <Save className="h-4 w-4" />
-          {getExportButtonText()}
-        </button>
+        <div className="has-tooltip">
+          <button
+            disabled={true}
+            className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 bg-gradient-to-r from-violet-600/50 to-fuchsia-600/50 opacity-50 cursor-not-allowed"
+          >
+            <Save className="h-4 w-4" />
+            Export MP4
+          </button>
+          <div className="tooltip -translate-y-full -translate-x-1/2 left-1/2 top-0 w-48 text-xs">
+            Export feature coming soon
+          </div>
+        </div>
 
         <button
           onClick={handleShare}
