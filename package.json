@@ -29,8 +29,7 @@
     "react-toastify": "^10.0.4",
     "recharts": "^2.12.2",
     "tone": "^14.7.77",
-    "uuid": "^9.0.1",
-    "worklet-loader": "^2.0.0"
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

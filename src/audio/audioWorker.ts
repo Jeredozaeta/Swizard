@@ -60,6 +60,33 @@ interface AudioChannel {
   enabled: boolean;
 }
 
+self.onmessage = async (e: MessageEvent) => {
+  const { type, data } = e.data;
+
+  if (type === 'generate') {
+    try {
+      const { channels, duration } = data;
+
+      if (duration > MAX_DURATION) {
+        self.postMessage({ 
+          type: 'error', 
+          error: `Duration cannot exceed ${MAX_DURATION} seconds (12 hours)`
+        });
+        return;
+      }
+
+      // MP4 export will be implemented here
+      self.postMessage({ type: 'error', error: 'MP4 export not yet implemented' });
+    } catch (error) {
+      console.error('Audio generation error:', error);
+      self.postMessage({ 
+        type: 'error', 
+        error: 'Failed to generate audio: ' + (error instanceof Error ? error.message : String(error))
+      });
+    }
+  }
+};
+
 // Clean up on termination
 self.addEventListener('unload', () => {
   // No cleanup needed

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
-import { Crown, Sparkles, Save, Download } from 'lucide-react';
+import { Crown, Sparkles, Save } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 
 interface ActionButtonsProps {
