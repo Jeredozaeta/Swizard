@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { Crown, Sparkles, Save } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
+import RecordRTC from 'recordrtc';
 
 interface ActionButtonsProps {
   onShowPricing: () => void;
@@ -12,6 +13,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const { state, togglePlayback, sharePreset } = useAudio();
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
+  const workerRef = useRef<Worker | null>(null);
+  const mediaRecorderRef = useRef<RecordRTC | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
 
   const handleShare = async () => {
     try {
@@ -39,6 +44,25 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     }
   };
 
+  const cleanupExport = () => {
+    if (workerRef.current) {
+      workerRef.current.terminate();
+      workerRef.current = null;
+    }
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.destroy();
+      mediaRecorderRef.current = null;
+    }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      mediaStreamRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+  };
+
   const handleExport = async () => {
     if (selectedDuration < 30) {
       toast.error('Please select a duration of at least 30 seconds', {
@@ -62,11 +86,79 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       setExporting(true);
       setProgress(0);
 
-      // TODO: Implement MP4 export logic
-      toast.info('MP4 export coming soon!', {
-        autoClose: 3000,
-        pauseOnHover: true,
-        closeButton: true
+      // Initialize audio context and worker
+      audioContextRef.current = new AudioContext();
+      workerRef.current = new Worker(
+        new URL('../audio/audioWorker.ts', import.meta.url),
+        { type: 'module' }
+      );
+
+      // Create audio processing nodes
+      const destination = audioContextRef.current.createMediaStreamDestination();
+      mediaStreamRef.current = destination.stream;
+
+      // Initialize MediaRecorder with high quality settings
+      mediaRecorderRef.current = new RecordRTC(mediaStreamRef.current, {
+        type: 'video',
+        mimeType: 'video/mp4',
+        frameRate: 1,
+        quality: 1,
+        width: 1280,
+        height: 720,
+        videoBitsPerSecond: 8000000,
+        audioBitsPerSecond: 320000
+      });
+
+      // Set up worker message handling
+      workerRef.current.onmessage = async (e) => {
+        const { type, audioData, progress: currentProgress } = e.data;
+
+        switch (type) {
+          case 'chunk':
+            if (audioData) {
+              const audioBuffer = await audioContextRef.current!.decodeAudioData(audioData);
+              const source = audioContextRef.current!.createBufferSource();
+              source.buffer = audioBuffer;
+              source.connect(destination);
+              source.start();
+            }
+            setProgress(currentProgress);
+            break;
+
+          case 'complete':
+            mediaRecorderRef.current?.stopRecording(() => {
+              const blob = mediaRecorderRef.current?.getBlob();
+              if (blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `swizard-${Date.now()}.mp4`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              }
+              cleanupExport();
+              setExporting(false);
+              setProgress(0);
+            });
+            break;
+
+          case 'error':
+            throw new Error(e.data.error);
+        }
+      };
+
+      // Start recording
+      mediaRecorderRef.current.startRecording();
+
+      // Start audio generation
+      workerRef.current.postMessage({
+        type: 'generate',
+        data: {
+          channels: state.channels,
+          duration: selectedDuration
+        }
       });
 
     } catch (error: any) {
@@ -76,7 +168,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         pauseOnHover: true,
         closeButton: true
       });
-    } finally {
+      cleanupExport();
       setExporting(false);
       setProgress(0);
     }

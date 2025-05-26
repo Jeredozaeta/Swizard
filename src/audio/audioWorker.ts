@@ -36,6 +36,9 @@ const CHANNELS = 2;
 // Maximum duration: 12 hours in seconds
 const MAX_DURATION = 43200; // 12 hours * 60 minutes * 60 seconds
 
+// Chunk size for processing (1 minute)
+const CHUNK_DURATION = 60;
+
 interface WaveformGenerator {
   (t: number, frequency: number): number;
 }
@@ -60,6 +63,35 @@ interface AudioChannel {
   enabled: boolean;
 }
 
+const generateAudioChunk = (
+  channels: AudioChannel[],
+  startTime: number,
+  duration: number,
+  sampleRate: number = SAMPLE_RATE
+): Float32Array => {
+  const numSamples = Math.floor(duration * sampleRate);
+  const buffer = new Float32Array(numSamples * CHANNELS);
+  const enabledChannels = channels.filter(c => c.enabled);
+
+  for (let i = 0; i < numSamples; i++) {
+    const t = startTime + (i / sampleRate);
+    let leftSample = 0;
+    let rightSample = 0;
+
+    for (const channel of enabledChannels) {
+      const sample = waveformGenerators[channel.waveform](t, channel.frequency);
+      leftSample += sample;
+      rightSample += sample;
+    }
+
+    const normalizer = Math.max(1, enabledChannels.length);
+    buffer[i * CHANNELS] = leftSample / normalizer;
+    buffer[i * CHANNELS + 1] = rightSample / normalizer;
+  }
+
+  return buffer;
+};
+
 self.onmessage = async (e: MessageEvent) => {
   const { type, data } = e.data;
 
@@ -75,8 +107,30 @@ self.onmessage = async (e: MessageEvent) => {
         return;
       }
 
-      // MP4 export will be implemented here
-      self.postMessage({ type: 'error', error: 'MP4 export not yet implemented' });
+      const numChunks = Math.ceil(duration / CHUNK_DURATION);
+      self.postMessage({ type: 'start', totalChunks: numChunks });
+
+      for (let i = 0; i < numChunks; i++) {
+        const startTime = i * CHUNK_DURATION;
+        const chunkDuration = Math.min(CHUNK_DURATION, duration - startTime);
+        
+        const audioData = generateAudioChunk(channels, startTime, chunkDuration);
+        
+        self.postMessage({
+          type: 'chunk',
+          audioData: audioData.buffer,
+          isFirstChunk: i === 0,
+          isLastChunk: i === numChunks - 1,
+          progress: ((i + 1) / numChunks) * 100
+        }, [audioData.buffer]);
+
+        // Yield to main thread periodically
+        if (i % 2 === 1) {
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+      }
+
+      self.postMessage({ type: 'complete' });
     } catch (error) {
       console.error('Audio generation error:', error);
       self.postMessage({ 
