@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Music, Settings } from 'lucide-react';
+import { Music } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import EffectCard from './EffectCard';
 import { toast } from 'react-toastify';
@@ -10,9 +10,6 @@ const AudioFXPanel: React.FC = () => {
   const [isGeneratingPreset, setIsGeneratingPreset] = useState(false);
   const [isInactive, setIsInactive] = useState(false);
   const [inactivityTimer, setInactivityTimer] = useState<number | null>(null);
-  const [effectDensity, setEffectDensity] = useState(1);
-  const [waveformComplexity, setWaveformComplexity] = useState(1);
-  const [showAdvanced, setShowAdvanced] = useState(false);
   
   const standardEffects = [
     'ringMod',
@@ -95,7 +92,7 @@ const AudioFXPanel: React.FC = () => {
       for (const effect of Object.values(state.effects)) {
         await new Promise(resolve => setTimeout(resolve, delay));
         
-        const shouldEnable = getSecureRandomBool(effectDensity * 0.4);
+        const shouldEnable = getSecureRandomBool(0.4);
         
         if (shouldEnable) {
           let randomValue;
@@ -140,66 +137,17 @@ const AudioFXPanel: React.FC = () => {
     <section className="mb-8">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-xl font-semibold text-purple-300">Audio FX</h2>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="btn btn-secondary btn-sm"
-          >
-            <Settings className="h-4 w-4" />
-            Advanced
-          </button>
-          <button
-            onClick={generateRandomSound}
-            disabled={isGeneratingPreset}
-            className={`btn btn-secondary btn-sm ${isInactive ? 'animate-attention' : ''} ${
-              isGeneratingPreset ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-          >
-            <Music className={`h-4 w-4 ${isGeneratingPreset ? 'animate-spin' : ''}`} />
-            <span>Create Random Sound</span>
-          </button>
-        </div>
+        <button
+          onClick={generateRandomSound}
+          disabled={isGeneratingPreset}
+          className={`btn btn-secondary btn-sm ${isInactive ? 'animate-attention' : ''} ${
+            isGeneratingPreset ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+        >
+          <Music className={`h-4 w-4 ${isGeneratingPreset ? 'animate-spin' : ''}`} />
+          <span>Create Random Sound</span>
+        </button>
       </div>
-
-      {showAdvanced && (
-        <div className="mb-4 p-4 bg-[#1a0b2e]/30 rounded-lg border border-purple-500/20">
-          <h3 className="text-sm font-medium text-purple-300 mb-3">Generation Settings</h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm text-purple-200 mb-1">Effect Density</label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.1"
-                value={effectDensity}
-                onChange={(e) => setEffectDensity(parseFloat(e.target.value))}
-                className="w-full"
-              />
-              <div className="flex justify-between text-xs text-purple-300/70">
-                <span>Minimal</span>
-                <span>Full</span>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm text-purple-200 mb-1">Waveform Complexity</label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.1"
-                value={waveformComplexity}
-                onChange={(e) => setWaveformComplexity(parseFloat(e.target.value))}
-                className="w-full"
-              />
-              <div className="flex justify-between text-xs text-purple-300/70">
-                <span>Simple</span>
-                <span>Complex</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
       
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 md:gap-3">
         {standardEffects.map(id => (

@@ -40,52 +40,21 @@ const MAX_DURATION = 43200; // 12 hours * 60 minutes * 60 seconds
 const CHUNK_DURATION = 60;
 
 interface WaveformGenerator {
-  (t: number, frequency: number, complexity?: number): number;
+  (t: number, frequency: number): number;
 }
 
 const waveformGenerators: Record<string, WaveformGenerator> = {
   sine: (t: number, frequency: number) => 
     Math.sin(2 * Math.PI * frequency * t),
   
-  square: (t: number, frequency: number, complexity = 1) => {
-    if (complexity < 0.5) {
-      // Simple square wave
-      return Math.sign(Math.sin(2 * Math.PI * frequency * t));
-    }
-    // Full square wave with harmonics
-    let sum = 0;
-    for (let n = 1; n <= Math.ceil(complexity * 10); n += 2) {
-      sum += Math.sin(2 * Math.PI * frequency * n * t) / n;
-    }
-    return Math.sign(sum);
-  },
+  square: (t: number, frequency: number) => 
+    Math.sign(Math.sin(2 * Math.PI * frequency * t)),
   
-  sawtooth: (t: number, frequency: number, complexity = 1) => {
-    if (complexity < 0.5) {
-      // Simple sawtooth
-      return 2 * ((frequency * t) % 1) - 1;
-    }
-    // Full sawtooth with harmonics
-    let sum = 0;
-    for (let n = 1; n <= Math.ceil(complexity * 10); n++) {
-      sum += Math.sin(2 * Math.PI * frequency * n * t) / n;
-    }
-    return sum * (2 / Math.PI);
-  },
+  sawtooth: (t: number, frequency: number) => 
+    2 * ((frequency * t) % 1) - 1,
   
-  triangle: (t: number, frequency: number, complexity = 1) => {
-    if (complexity < 0.5) {
-      // Simple triangle
-      return 2 * Math.abs(2 * ((frequency * t) % 1) - 1) - 1;
-    }
-    // Full triangle with harmonics
-    let sum = 0;
-    for (let n = 0; n < Math.ceil(complexity * 10); n++) {
-      const harmonic = 2 * n + 1;
-      sum += Math.pow(-1, n) * Math.sin(2 * Math.PI * frequency * harmonic * t) / (harmonic * harmonic);
-    }
-    return sum * (8 / (Math.PI * Math.PI));
-  }
+  triangle: (t: number, frequency: number) => 
+    2 * Math.abs(2 * ((frequency * t) % 1) - 1) - 1
 };
 
 interface AudioChannel {
@@ -94,56 +63,30 @@ interface AudioChannel {
   enabled: boolean;
 }
 
-interface AudioGenerationOptions {
-  complexity?: number;
-  sampleRate?: number;
-  effectDensity?: number;
-}
-
 const generateAudioChunk = (
   channels: AudioChannel[],
   startTime: number,
   duration: number,
-  options: AudioGenerationOptions = {}
+  sampleRate: number = SAMPLE_RATE
 ): Float32Array => {
-  const {
-    complexity = 1,
-    sampleRate = SAMPLE_RATE,
-    effectDensity = 1
-  } = options;
-
   const numSamples = Math.floor(duration * sampleRate);
   const buffer = new Float32Array(numSamples * CHANNELS);
   const enabledChannels = channels.filter(c => c.enabled);
-  const skipSamples = complexity < 0.5 ? 2 : 1; // Skip samples for lower complexity
 
-  for (let i = 0; i < numSamples; i += skipSamples) {
+  for (let i = 0; i < numSamples; i++) {
     const t = startTime + (i / sampleRate);
     let leftSample = 0;
     let rightSample = 0;
 
     for (const channel of enabledChannels) {
-      const sample = waveformGenerators[channel.waveform](t, channel.frequency, complexity);
-      
-      // Apply effect density
-      const effectScale = Math.random() < effectDensity ? 1 : 0.5;
-      leftSample += sample * effectScale;
-      rightSample += sample * effectScale;
+      const sample = waveformGenerators[channel.waveform](t, channel.frequency);
+      leftSample += sample;
+      rightSample += sample;
     }
 
     const normalizer = Math.max(1, enabledChannels.length);
-    const value = complexity < 0.5 ? 
-      Math.sign(leftSample / normalizer) * 0.8 : // Simpler waveform for low complexity
-      leftSample / normalizer;
-
-    buffer[i * CHANNELS] = value;
-    buffer[i * CHANNELS + 1] = value;
-
-    // Fill skipped samples
-    if (skipSamples > 1 && i < numSamples - 1) {
-      buffer[(i + 1) * CHANNELS] = value;
-      buffer[(i + 1) * CHANNELS + 1] = value;
-    }
+    buffer[i * CHANNELS] = leftSample / normalizer;
+    buffer[i * CHANNELS + 1] = rightSample / normalizer;
   }
 
   return buffer;
@@ -154,7 +97,7 @@ self.onmessage = async (e: MessageEvent) => {
 
   if (type === 'generate') {
     try {
-      const { channels, duration, options = {} } = data;
+      const { channels, duration } = data;
 
       if (duration > MAX_DURATION) {
         self.postMessage({ 
@@ -166,14 +109,14 @@ self.onmessage = async (e: MessageEvent) => {
 
       const numChunks = Math.ceil(duration / CHUNK_DURATION);
       self.postMessage({ type: 'start', totalChunks: numChunks });
-      console.log('Starting audio generation with options:', options);
+      console.log('Starting audio generation');
 
       for (let i = 0; i < numChunks; i++) {
         const startTime = i * CHUNK_DURATION;
         const chunkDuration = Math.min(CHUNK_DURATION, duration - startTime);
         
-        const audioData = generateAudioChunk(channels, startTime, chunkDuration, options);
-        console.log(`Generated chunk ${i + 1}/${numChunks} with complexity ${options.complexity}`);
+        const audioData = generateAudioChunk(channels, startTime, chunkDuration);
+        console.log(`Generated chunk ${i + 1}/${numChunks}`);
         
         self.postMessage({
           type: 'chunk',
