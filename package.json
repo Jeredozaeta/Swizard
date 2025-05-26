@@ -28,9 +28,9 @@
     "react-scroll": "^1.9.0",
     "react-toastify": "^10.0.4",
     "recharts": "^2.12.2",
+    "recordrtc": "^5.6.2",
     "tone": "^14.7.77",
-    "uuid": "^9.0.1",
-    "recordrtc": "^5.6.2"
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
@@ -39,8 +39,8 @@
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@types/react-scroll": "^1.8.10",
-    "@types/uuid": "^9.0.8",
     "@types/recordrtc": "^5.6.14",
+    "@types/uuid": "^9.0.8",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.18",
     "eslint": "^9.9.1",
