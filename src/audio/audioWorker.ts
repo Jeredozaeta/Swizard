@@ -86,7 +86,7 @@ const generatePCMData = (
     frequency: channel.frequency
   }));
 
-  const PROGRESS_INTERVAL = Math.floor(numSamples / 100); // Report progress every 1%
+  const PROGRESS_INTERVAL = Math.floor(numSamples / 100);
 
   for (let i = 0; i < numSamples; i++) {
     if (i % PROGRESS_INTERVAL === 0) {
@@ -167,7 +167,6 @@ self.onmessage = async (e: MessageEvent) => {
     try {
       const { channels, duration } = data;
 
-      // Validate duration
       if (duration > MAX_DURATION) {
         self.postMessage({ 
           type: 'error', 
