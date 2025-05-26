@@ -37,8 +37,8 @@ const BYTES_PER_SAMPLE = BITS_PER_SAMPLE / 8;
 const BLOCK_ALIGN = CHANNELS * BYTES_PER_SAMPLE;
 const BYTE_RATE = SAMPLE_RATE * BLOCK_ALIGN;
 
-// Maximum chunk size (100MB) to prevent memory issues
-const MAX_CHUNK_SIZE = 100 * 1024 * 1024;
+// Maximum chunk size (50MB) to prevent memory issues
+const MAX_CHUNK_SIZE = 50 * 1024 * 1024;
 
 // Calculate optimal chunk duration based on MAX_CHUNK_SIZE
 const CHUNK_DURATION = Math.floor(MAX_CHUNK_SIZE / (BYTE_RATE));
@@ -83,7 +83,7 @@ const generatePCMData = (
     frequency: channel.frequency
   }));
 
-  const PROGRESS_INTERVAL = Math.floor(numSamples / 100); // Report progress every 1%
+  const PROGRESS_INTERVAL = Math.floor(numSamples / 100);
 
   for (let i = 0; i < numSamples; i++) {
     if (i % PROGRESS_INTERVAL === 0) {
@@ -164,7 +164,6 @@ self.onmessage = async (e: MessageEvent) => {
     try {
       const { channels, duration } = data;
 
-      // Validate duration
       if (duration > MAX_DURATION) {
         self.postMessage({ 
           type: 'error', 
@@ -177,65 +176,53 @@ self.onmessage = async (e: MessageEvent) => {
       const samplesPerChunk = Math.floor(SAMPLE_RATE * CHUNK_DURATION);
       const numChunks = Math.ceil(totalSamples / samplesPerChunk);
       
-      self.postMessage({ type: 'progress', progress: 0 });
-
-      let retryCount = 0;
-      const MAX_RETRIES = 3;
+      self.postMessage({ type: 'start', totalChunks: numChunks });
 
       for (let chunkIndex = 0; chunkIndex < numChunks; chunkIndex++) {
-        try {
-          const startSample = chunkIndex * samplesPerChunk;
-          const chunkSamples = Math.min(samplesPerChunk, totalSamples - startSample);
-          const isFirstChunk = chunkIndex === 0;
-          
-          // Generate chunk header (WAV header for first chunk only)
-          const header = createWAVHeader(
-            chunkSamples,
-            isFirstChunk,
-            isFirstChunk ? totalSamples : undefined
-          );
+        const startSample = chunkIndex * samplesPerChunk;
+        const chunkSamples = Math.min(samplesPerChunk, totalSamples - startSample);
+        const isFirstChunk = chunkIndex === 0;
+        const isLastChunk = chunkIndex === numChunks - 1;
+        
+        // Generate chunk header (WAV header for first chunk only)
+        const header = createWAVHeader(
+          totalSamples,
+          isFirstChunk
+        );
 
-          // Generate audio data with progress tracking
-          const floatPCM = generatePCMData(
-            channels, 
-            startSample, 
-            chunkSamples,
-            (chunkProgress) => {
-              const overallProgress = (chunkIndex * 100 + chunkProgress) / numChunks;
-              self.postMessage({ type: 'progress', progress: overallProgress });
-            }
-          );
-          
-          const int16PCM = floatTo16BitPCM(floatPCM);
-
-          // Send chunk data
-          self.postMessage({
-            type: 'chunk',
-            header: header,
-            data: int16PCM.buffer,
-            isFirstChunk,
-            isLastChunk: chunkIndex === numChunks - 1,
-            progress: ((chunkIndex + 1) / numChunks) * 100
-          }, [header, int16PCM.buffer]);
-
-          // Reset retry count on successful chunk
-          retryCount = 0;
-
-          // Yield to main thread periodically
-          if (chunkIndex % 2 === 1) {
-            await new Promise(resolve => setTimeout(resolve, 0));
+        // Generate audio data with progress tracking
+        const floatPCM = generatePCMData(
+          channels, 
+          startSample, 
+          chunkSamples,
+          (chunkProgress) => {
+            const overallProgress = (chunkIndex * 100 + chunkProgress) / numChunks;
+            self.postMessage({ 
+              type: 'progress', 
+              progress: Math.round(overallProgress),
+              currentChunk: chunkIndex + 1,
+              totalChunks: numChunks
+            });
           }
-        } catch (chunkError) {
-          console.error(`Error processing chunk ${chunkIndex}:`, chunkError);
-          
-          if (retryCount < MAX_RETRIES) {
-            retryCount++;
-            chunkIndex--; // Retry this chunk
-            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Exponential backoff
-            continue;
-          }
-          
-          throw new Error(`Failed to process chunk ${chunkIndex} after ${MAX_RETRIES} retries`);
+        );
+        
+        const int16PCM = floatTo16BitPCM(floatPCM);
+
+        // Send chunk data
+        self.postMessage({
+          type: 'chunk',
+          header: header,
+          data: int16PCM.buffer,
+          isFirstChunk,
+          isLastChunk,
+          chunkIndex,
+          totalChunks: numChunks,
+          progress: ((chunkIndex + 1) / numChunks) * 100
+        }, [header, int16PCM.buffer]);
+
+        // Yield to main thread periodically
+        if (chunkIndex % 2 === 1) {
+          await new Promise(resolve => setTimeout(resolve, 0));
         }
       }
 

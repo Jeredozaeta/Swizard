@@ -197,14 +197,19 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       );
 
       const worker = workerRef.current;
-      let lastChunkIndex = -1;
-      let retryCount = 0;
-      const MAX_RETRIES = 3;
 
-      const messageHandler = async (e: MessageEvent) => {
+      worker.addEventListener('message', async (e) => {
         const { type, header, data, isFirstChunk, isLastChunk, progress, error } = e.data;
 
         switch (type) {
+          case 'start':
+            console.log('Starting audio generation...');
+            break;
+
+          case 'progress':
+            setProgress(progress);
+            break;
+
           case 'chunk':
             try {
               const chunkParts = [];
@@ -214,51 +219,19 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
               const chunkBlob = new Blob(chunkParts, { type: 'audio/wav' });
               audioChunksRef.current.push(chunkBlob);
 
-              setProgress(progress);
-              lastChunkIndex++;
-
               if (isLastChunk) {
                 setExportStatus('ready');
                 setDownloading(false);
-                setProgress(0);
+                setProgress(100);
                 saveFile();
               }
             } catch (error: any) {
               console.error('Chunk processing error:', error);
-              const isDiskFullError = error.name === 'QuotaExceededError' || 
-                                    error.message.includes('storage') ||
-                                    error.message.includes('quota') ||
-                                    error.message.includes('disk');
-              
-              if (retryCount < MAX_RETRIES) {
-                retryCount++;
-                console.log(`Retrying chunk processing (attempt ${retryCount})`);
-                
-                // Wait before retrying
-                retryTimeoutRef.current = window.setTimeout(() => {
-                  // Remove the last failed chunk
-                  if (audioChunksRef.current.length > lastChunkIndex) {
-                    audioChunksRef.current.pop();
-                  }
-                  
-                  // Restart the worker
-                  cleanupWorker();
-                  handleDownload();
-                }, 1000 * retryCount);
-                
-                return;
-              }
-              
-              toast.error(
-                isDiskFullError 
-                  ? 'Download failed — Your device ran out of space'
-                  : 'Export failed — please try again',
-                {
-                  autoClose: TOAST_DURATION,
-                  pauseOnHover: true,
-                  closeButton: true
-                }
-              );
+              toast.error('Export failed — please try again', {
+                autoClose: TOAST_DURATION,
+                pauseOnHover: true,
+                closeButton: true
+              });
               setExportStatus('error');
               cleanupWorker();
               setDownloading(false);
@@ -266,24 +239,24 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
             }
             break;
 
+          case 'complete':
+            console.log('Audio generation complete');
+            break;
+
           case 'error':
             console.error('Worker error:', error);
-            setExportStatus('error');
-            cleanupWorker();
-            
             toast.error('Export failed — please try again', {
               autoClose: TOAST_DURATION,
               pauseOnHover: true,
               closeButton: true
             });
-            
+            setExportStatus('error');
+            cleanupWorker();
             setDownloading(false);
             setProgress(0);
             break;
         }
-      };
-
-      worker.addEventListener('message', messageHandler);
+      });
 
       worker.postMessage({
         type: 'generate',
