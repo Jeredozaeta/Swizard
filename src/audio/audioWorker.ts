@@ -37,8 +37,8 @@ const BYTES_PER_SAMPLE = BITS_PER_SAMPLE / 8;
 const BLOCK_ALIGN = CHANNELS * BYTES_PER_SAMPLE;
 const BYTE_RATE = SAMPLE_RATE * BLOCK_ALIGN;
 
-// Maximum chunk size (50MB) to prevent memory issues
-const MAX_CHUNK_SIZE = 50 * 1024 * 1024;
+// Maximum chunk size (10MB) to prevent memory issues
+const MAX_CHUNK_SIZE = 10 * 1024 * 1024;
 
 // Calculate optimal chunk duration based on MAX_CHUNK_SIZE
 const CHUNK_DURATION = Math.floor(MAX_CHUNK_SIZE / (BYTE_RATE));
