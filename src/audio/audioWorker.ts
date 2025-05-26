@@ -37,17 +37,14 @@ const BYTES_PER_SAMPLE = BITS_PER_SAMPLE / 8;
 const BLOCK_ALIGN = CHANNELS * BYTES_PER_SAMPLE;
 const BYTE_RATE = SAMPLE_RATE * BLOCK_ALIGN;
 
-// Optimal chunk size (50MB) for efficient memory usage
-const CHUNK_SIZE = 50 * 1024 * 1024;
+// Optimal chunk size (10MB) for efficient memory usage
+const CHUNK_SIZE = 10 * 1024 * 1024;
 
 // Calculate chunk duration based on CHUNK_SIZE
 const CHUNK_DURATION = Math.floor(CHUNK_SIZE / BYTE_RATE);
 
 // Maximum duration: 12 hours in seconds
 const MAX_DURATION = 43200; // 12 hours * 60 minutes * 60 seconds
-
-// Minimum chunk size to prevent excessive chunking
-const MIN_CHUNK_SIZE = 1024 * 1024; // 1MB
 
 interface WaveformGenerator {
   (t: number, frequency: number): number;
