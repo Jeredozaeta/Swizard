@@ -12,6 +12,8 @@ type ExportStatus = 'idle' | 'rendering' | 'ready' | 'error';
 
 const MIN_AUDIO_SIZE = 1024; // 1KB minimum size
 const TOAST_DURATION = 5000; // 5 seconds
+const BYTES_PER_SECOND = 192000; // 48kHz * 16-bit * 2 channels
+const GB_THRESHOLD = 3 * 1024 * 1024 * 1024; // 3GB in bytes
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDuration }) => {
   const { state, togglePlayback, sharePreset } = useAudio();
@@ -22,7 +24,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const workerRef = useRef<Worker | null>(null);
   const downloadUrlRef = useRef<string | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-
+  const retryTimeoutRef = useRef<number | null>(null);
+  
   const cleanupWorker = () => {
     if (workerRef.current) {
       workerRef.current.terminate();
@@ -31,6 +34,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     if (downloadUrlRef.current) {
       URL.revokeObjectURL(downloadUrlRef.current);
       downloadUrlRef.current = null;
+    }
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
     }
     audioChunksRef.current = [];
   };
@@ -62,6 +69,23 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     }
   };
 
+  const estimateFileSize = (duration: number): number => {
+    return Math.ceil(duration * BYTES_PER_SECOND);
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let size = bytes;
+    let unitIndex = 0;
+    
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
+    }
+    
+    return `${size.toFixed(1)} ${units[unitIndex]}`;
+  };
+
   const saveFile = () => {
     try {
       if (!audioChunksRef.current.length) {
@@ -86,29 +110,39 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         return;
       }
 
-      const url = URL.createObjectURL(finalBlob);
+      if (downloadUrlRef.current) {
+        URL.revokeObjectURL(downloadUrlRef.current);
+      }
+      downloadUrlRef.current = URL.createObjectURL(finalBlob);
+      
       const a = document.createElement('a');
-      a.href = url;
+      a.href = downloadUrlRef.current;
       a.download = `swizard-${Date.now()}.wav`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
 
       toast.info('Download started — check your files', {
         autoClose: TOAST_DURATION,
         closeButton: true
       });
-      
-      setExportStatus('idle');
-      cleanupWorker();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Save file error:', error);
-      toast.error('Export failed — please try again', {
-        autoClose: TOAST_DURATION,
-        pauseOnHover: true,
-        closeButton: true
-      });
+      const isDiskFullError = error.name === 'QuotaExceededError' || 
+                            error.message.includes('storage') ||
+                            error.message.includes('quota') ||
+                            error.message.includes('disk');
+      
+      toast.error(
+        isDiskFullError 
+          ? 'Download failed — Your device ran out of space'
+          : 'Export failed — please try again',
+        {
+          autoClose: TOAST_DURATION,
+          pauseOnHover: true,
+          closeButton: true
+        }
+      );
       setExportStatus('error');
       cleanupWorker();
     }
@@ -133,6 +167,23 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       return;
     }
 
+    if (exportStatus === 'ready' && audioChunksRef.current.length > 0) {
+      saveFile();
+      return;
+    }
+
+    // Check estimated file size
+    const estimatedBytes = estimateFileSize(selectedDuration);
+    if (estimatedBytes >= GB_THRESHOLD) {
+      const sizeStr = formatFileSize(estimatedBytes);
+      const confirmed = window.confirm(
+        `Make sure you have enough disk space. This export is approximately ${sizeStr}. Do you want to continue?`
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+
     try {
       setDownloading(true);
       setProgress(0);
@@ -145,7 +196,12 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         { type: 'module' }
       );
 
-      workerRef.current.onmessage = (e: MessageEvent) => {
+      const worker = workerRef.current;
+      let lastChunkIndex = -1;
+      let retryCount = 0;
+      const MAX_RETRIES = 3;
+
+      const messageHandler = async (e: MessageEvent) => {
         const { type, header, data, isFirstChunk, isLastChunk, progress, error } = e.data;
 
         switch (type) {
@@ -158,19 +214,51 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
               const chunkBlob = new Blob(chunkParts, { type: 'audio/wav' });
               audioChunksRef.current.push(chunkBlob);
 
-              setProgress(Math.floor(progress));
+              setProgress(progress);
+              lastChunkIndex++;
 
               if (isLastChunk) {
                 setExportStatus('ready');
+                setDownloading(false);
+                setProgress(0);
                 saveFile();
               }
-            } catch (error) {
+            } catch (error: any) {
               console.error('Chunk processing error:', error);
-              toast.error('Export failed — please try again', {
-                autoClose: TOAST_DURATION,
-                pauseOnHover: true,
-                closeButton: true
-              });
+              const isDiskFullError = error.name === 'QuotaExceededError' || 
+                                    error.message.includes('storage') ||
+                                    error.message.includes('quota') ||
+                                    error.message.includes('disk');
+              
+              if (retryCount < MAX_RETRIES) {
+                retryCount++;
+                console.log(`Retrying chunk processing (attempt ${retryCount})`);
+                
+                // Wait before retrying
+                retryTimeoutRef.current = window.setTimeout(() => {
+                  // Remove the last failed chunk
+                  if (audioChunksRef.current.length > lastChunkIndex) {
+                    audioChunksRef.current.pop();
+                  }
+                  
+                  // Restart the worker
+                  cleanupWorker();
+                  handleDownload();
+                }, 1000 * retryCount);
+                
+                return;
+              }
+              
+              toast.error(
+                isDiskFullError 
+                  ? 'Download failed — Your device ran out of space'
+                  : 'Export failed — please try again',
+                {
+                  autoClose: TOAST_DURATION,
+                  pauseOnHover: true,
+                  closeButton: true
+                }
+              );
               setExportStatus('error');
               cleanupWorker();
               setDownloading(false);
@@ -178,30 +266,26 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
             }
             break;
 
-          case 'progress':
-            setProgress(Math.floor(progress));
-            break;
-
           case 'error':
             console.error('Worker error:', error);
+            setExportStatus('error');
+            cleanupWorker();
+            
             toast.error('Export failed — please try again', {
               autoClose: TOAST_DURATION,
               pauseOnHover: true,
               closeButton: true
             });
-            setExportStatus('error');
-            cleanupWorker();
+            
             setDownloading(false);
             setProgress(0);
-            break;
-
-          case 'complete':
-            setDownloading(false);
             break;
         }
       };
 
-      workerRef.current.postMessage({
+      worker.addEventListener('message', messageHandler);
+
+      worker.postMessage({
         type: 'generate',
         data: {
           channels: state.channels,
@@ -210,12 +294,12 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       });
     } catch (error) {
       console.error('Download error:', error);
+      setExportStatus('error');
       toast.error('Export failed — please try again', {
         autoClose: TOAST_DURATION,
         pauseOnHover: true,
         closeButton: true
       });
-      setExportStatus('error');
       cleanupWorker();
       setDownloading(false);
       setProgress(0);
@@ -225,14 +309,15 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const handleCancelDownload = () => {
     cleanupWorker();
     setExportStatus('idle');
-    setDownloading(false);
-    setProgress(0);
     
     toast.info('Export cancelled', {
       autoClose: TOAST_DURATION,
       pauseOnHover: true,
       closeButton: true
     });
+    
+    setDownloading(false);
+    setProgress(0);
   };
 
   const getExportButtonText = () => {
@@ -249,11 +334,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   };
 
   return (
-    <section className="fixed bottom-0 left-0 right-0 md:relative bg-[#1a0b2e]/95 md:bg-transparent backdrop-blur-md md:backdrop-blur-none z-50 md:z-auto py-3 px-4 md:py-0 md:px-0 md:mb-6 border-t border-purple-500/20 md:border-0">      
-      <div className="flex flex-nowrap overflow-x-auto md:overflow-visible md:flex-wrap justify-center items-center gap-2 md:gap-3 max-w-4xl mx-auto">
+    <section className="mb-6">      
+      <div className="flex flex-nowrap overflow-x-auto md:overflow-visible md:flex-wrap justify-center gap-2 md:gap-3 px-4 md:px-0 -mx-4 md:mx-0 pb-4 md:pb-0 mb-4 md:mb-8">
         <button
           onClick={togglePlayback}
-          className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 min-w-[100px] md:min-w-0"
+          className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0"
         >
           <Play className="h-4 w-4" />
           {state.isPlaying ? 'Stop' : 'Play'}
@@ -263,7 +348,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
           <button
             onClick={handleDownload}
             disabled={downloading || selectedDuration < 30 || exportStatus === 'error' || exportStatus === 'rendering'}
-            className={`btn btn-primary btn-sm whitespace-nowrap bg-gradient-to-r min-w-[140px] md:min-w-0 ${
+            className={`btn btn-primary btn-sm whitespace-nowrap bg-gradient-to-r ${
               exportStatus === 'ready'
                 ? 'from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500'
                 : 'from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500'
@@ -284,7 +369,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
 
         <button
           onClick={handleShare}
-          className={`btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 min-w-[120px] md:min-w-0 ${hasChanges ? 'animate-attention' : ''}`}
+          className={`btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 ${hasChanges ? 'animate-attention' : ''}`}
           title="Share your creation to inspire others"
         >
           <Sparkles className="h-4 w-4" />
@@ -293,7 +378,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         
         <button
           onClick={onShowPricing}
-          className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 min-w-[90px] md:min-w-0"
+          className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0"
         >
           <Crown className="h-4 w-4" />
           Go Pro
