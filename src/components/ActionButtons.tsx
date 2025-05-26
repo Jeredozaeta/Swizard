@@ -12,7 +12,6 @@ type ExportStatus = 'idle' | 'rendering' | 'ready' | 'error';
 
 const MIN_AUDIO_SIZE = 1024; // 1KB minimum size
 const TOAST_DURATION = 5000; // 5 seconds
-const BYTES_PER_SECOND = 192000; // 48kHz * 16-bit * 2 channels
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDuration }) => {
   const { state, togglePlayback, sharePreset } = useAudio();
@@ -23,7 +22,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const workerRef = useRef<Worker | null>(null);
   const downloadUrlRef = useRef<string | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const retryTimeoutRef = useRef<number | null>(null);
 
   const cleanupWorker = () => {
     if (workerRef.current) {
@@ -33,10 +31,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     if (downloadUrlRef.current) {
       URL.revokeObjectURL(downloadUrlRef.current);
       downloadUrlRef.current = null;
-    }
-    if (retryTimeoutRef.current) {
-      clearTimeout(retryTimeoutRef.current);
-      retryTimeoutRef.current = null;
     }
     audioChunksRef.current = [];
   };
@@ -92,23 +86,23 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         return;
       }
 
-      if (downloadUrlRef.current) {
-        URL.revokeObjectURL(downloadUrlRef.current);
-      }
-      downloadUrlRef.current = URL.createObjectURL(finalBlob);
-      
+      const url = URL.createObjectURL(finalBlob);
       const a = document.createElement('a');
-      a.href = downloadUrlRef.current;
+      a.href = url;
       a.download = `swizard-${Date.now()}.wav`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
       toast.info('Download started — check your files', {
         autoClose: TOAST_DURATION,
         closeButton: true
       });
-    } catch (error: any) {
+      
+      setExportStatus('idle');
+      cleanupWorker();
+    } catch (error) {
       console.error('Save file error:', error);
       toast.error('Export failed — please try again', {
         autoClose: TOAST_DURATION,
@@ -139,11 +133,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       return;
     }
 
-    if (exportStatus === 'ready' && audioChunksRef.current.length > 0) {
-      saveFile();
-      return;
-    }
-
     try {
       setDownloading(true);
       setProgress(0);
@@ -156,12 +145,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         { type: 'module' }
       );
 
-      const worker = workerRef.current;
-      let lastChunkIndex = -1;
-      let retryCount = 0;
-      const MAX_RETRIES = 3;
-
-      worker.addEventListener('message', async (e) => {
+      workerRef.current.onmessage = (e: MessageEvent) => {
         const { type, header, data, isFirstChunk, isLastChunk, progress, error } = e.data;
 
         switch (type) {
@@ -174,34 +158,14 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
               const chunkBlob = new Blob(chunkParts, { type: 'audio/wav' });
               audioChunksRef.current.push(chunkBlob);
 
-              setProgress(progress);
-              lastChunkIndex++;
+              setProgress(Math.floor(progress));
 
               if (isLastChunk) {
                 setExportStatus('ready');
-                setDownloading(false);
-                setProgress(0);
                 saveFile();
               }
-            } catch (error: any) {
+            } catch (error) {
               console.error('Chunk processing error:', error);
-              
-              if (retryCount < MAX_RETRIES) {
-                retryCount++;
-                console.log(`Retrying chunk processing (attempt ${retryCount})`);
-                
-                retryTimeoutRef.current = window.setTimeout(() => {
-                  if (audioChunksRef.current.length > lastChunkIndex) {
-                    audioChunksRef.current.pop();
-                  }
-                  
-                  cleanupWorker();
-                  handleDownload();
-                }, 1000 * retryCount);
-                
-                return;
-              }
-              
               toast.error('Export failed — please try again', {
                 autoClose: TOAST_DURATION,
                 pauseOnHover: true,
@@ -214,24 +178,30 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
             }
             break;
 
+          case 'progress':
+            setProgress(Math.floor(progress));
+            break;
+
           case 'error':
             console.error('Worker error:', error);
-            setExportStatus('error');
-            cleanupWorker();
-            
             toast.error('Export failed — please try again', {
               autoClose: TOAST_DURATION,
               pauseOnHover: true,
               closeButton: true
             });
-            
+            setExportStatus('error');
+            cleanupWorker();
             setDownloading(false);
             setProgress(0);
             break;
-        }
-      });
 
-      worker.postMessage({
+          case 'complete':
+            setDownloading(false);
+            break;
+        }
+      };
+
+      workerRef.current.postMessage({
         type: 'generate',
         data: {
           channels: state.channels,
@@ -240,12 +210,12 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       });
     } catch (error) {
       console.error('Download error:', error);
-      setExportStatus('error');
       toast.error('Export failed — please try again', {
         autoClose: TOAST_DURATION,
         pauseOnHover: true,
         closeButton: true
       });
+      setExportStatus('error');
       cleanupWorker();
       setDownloading(false);
       setProgress(0);
@@ -255,15 +225,14 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const handleCancelDownload = () => {
     cleanupWorker();
     setExportStatus('idle');
+    setDownloading(false);
+    setProgress(0);
     
     toast.info('Export cancelled', {
       autoClose: TOAST_DURATION,
       pauseOnHover: true,
       closeButton: true
     });
-    
-    setDownloading(false);
-    setProgress(0);
   };
 
   const getExportButtonText = () => {
