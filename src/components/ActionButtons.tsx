@@ -139,28 +139,36 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
 
           case 'complete':
             console.log('Audio generation complete, stopping recording');
-            mediaRecorderRef.current?.stopRecording(() => {
-              const blob = mediaRecorderRef.current?.getBlob();
-              if (blob) {
-                console.log(`MP4 blob created - ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `swizard-${Date.now()}.mp4`;
-                document.body.appendChild(a);
-                console.log('MP4 download triggered');
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                console.log('MP4 export complete');
-              } else {
-                console.error('Failed to create MP4 blob');
-                toast.error('Export failed - no data generated');
-              }
+            if (mediaRecorderRef.current) {
+              mediaRecorderRef.current.stopRecording(() => {
+                const blob = mediaRecorderRef.current?.getBlob();
+                if (blob) {
+                  console.log(`MP4 blob created - ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `swizard-${Date.now()}.mp4`;
+                  document.body.appendChild(a);
+                  console.log('MP4 download triggered');
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                  console.log('MP4 export complete');
+                } else {
+                  console.error('Failed to create MP4 blob');
+                  toast.error('Export failed - no data generated');
+                }
+                cleanupExport();
+                setExporting(false);
+                setProgress(0);
+              });
+            } else {
+              console.error('MediaRecorder not initialized');
+              toast.error('Export failed - recorder not initialized');
               cleanupExport();
               setExporting(false);
               setProgress(0);
-            });
+            }
             break;
 
           case 'error':
