@@ -13,7 +13,6 @@ type ExportStatus = 'idle' | 'rendering' | 'ready' | 'error';
 const MIN_AUDIO_SIZE = 1024; // 1KB minimum size
 const TOAST_DURATION = 5000; // 5 seconds
 const BYTES_PER_SECOND = 192000; // 48kHz * 16-bit * 2 channels
-const GB_THRESHOLD = 3 * 1024 * 1024 * 1024; // 3GB in bytes
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDuration }) => {
   const { state, togglePlayback, sharePreset } = useAudio();
@@ -25,7 +24,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const downloadUrlRef = useRef<string | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const retryTimeoutRef = useRef<number | null>(null);
-  
+
   const cleanupWorker = () => {
     if (workerRef.current) {
       workerRef.current.terminate();
@@ -67,23 +66,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         closeButton: true
       });
     }
-  };
-
-  const estimateFileSize = (duration: number): number => {
-    return Math.ceil(duration * BYTES_PER_SECOND);
-  };
-
-  const formatFileSize = (bytes: number): string => {
-    const units = ['B', 'KB', 'MB', 'GB'];
-    let size = bytes;
-    let unitIndex = 0;
-    
-    while (size >= 1024 && unitIndex < units.length - 1) {
-      size /= 1024;
-      unitIndex++;
-    }
-    
-    return `${size.toFixed(1)} ${units[unitIndex]}`;
   };
 
   const saveFile = () => {
@@ -128,21 +110,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       });
     } catch (error: any) {
       console.error('Save file error:', error);
-      const isDiskFullError = error.name === 'QuotaExceededError' || 
-                            error.message.includes('storage') ||
-                            error.message.includes('quota') ||
-                            error.message.includes('disk');
-      
-      toast.error(
-        isDiskFullError 
-          ? 'Download failed — Your device ran out of space'
-          : 'Export failed — please try again',
-        {
-          autoClose: TOAST_DURATION,
-          pauseOnHover: true,
-          closeButton: true
-        }
-      );
+      toast.error('Export failed — please try again', {
+        autoClose: TOAST_DURATION,
+        pauseOnHover: true,
+        closeButton: true
+      });
       setExportStatus('error');
       cleanupWorker();
     }
@@ -172,18 +144,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       return;
     }
 
-    // Check estimated file size
-    const estimatedBytes = estimateFileSize(selectedDuration);
-    if (estimatedBytes >= GB_THRESHOLD) {
-      const sizeStr = formatFileSize(estimatedBytes);
-      const confirmed = window.confirm(
-        `Make sure you have enough disk space. This export is approximately ${sizeStr}. Do you want to continue?`
-      );
-      if (!confirmed) {
-        return;
-      }
-    }
-
     try {
       setDownloading(true);
       setProgress(0);
@@ -201,7 +161,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       let retryCount = 0;
       const MAX_RETRIES = 3;
 
-      const messageHandler = async (e: MessageEvent) => {
+      worker.addEventListener('message', async (e) => {
         const { type, header, data, isFirstChunk, isLastChunk, progress, error } = e.data;
 
         switch (type) {
@@ -225,23 +185,16 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
               }
             } catch (error: any) {
               console.error('Chunk processing error:', error);
-              const isDiskFullError = error.name === 'QuotaExceededError' || 
-                                    error.message.includes('storage') ||
-                                    error.message.includes('quota') ||
-                                    error.message.includes('disk');
               
               if (retryCount < MAX_RETRIES) {
                 retryCount++;
                 console.log(`Retrying chunk processing (attempt ${retryCount})`);
                 
-                // Wait before retrying
                 retryTimeoutRef.current = window.setTimeout(() => {
-                  // Remove the last failed chunk
                   if (audioChunksRef.current.length > lastChunkIndex) {
                     audioChunksRef.current.pop();
                   }
                   
-                  // Restart the worker
                   cleanupWorker();
                   handleDownload();
                 }, 1000 * retryCount);
@@ -249,16 +202,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
                 return;
               }
               
-              toast.error(
-                isDiskFullError 
-                  ? 'Download failed — Your device ran out of space'
-                  : 'Export failed — please try again',
-                {
-                  autoClose: TOAST_DURATION,
-                  pauseOnHover: true,
-                  closeButton: true
-                }
-              );
+              toast.error('Export failed — please try again', {
+                autoClose: TOAST_DURATION,
+                pauseOnHover: true,
+                closeButton: true
+              });
               setExportStatus('error');
               cleanupWorker();
               setDownloading(false);
@@ -281,9 +229,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
             setProgress(0);
             break;
         }
-      };
-
-      worker.addEventListener('message', messageHandler);
+      });
 
       worker.postMessage({
         type: 'generate',
