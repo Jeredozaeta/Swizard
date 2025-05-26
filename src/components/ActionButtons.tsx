@@ -113,7 +113,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         width: 1280,
         height: 720,
         videoBitsPerSecond: 8000000,
-        audioBitsPerSecond: 320000
+        audioBitsPerSecond: 320000,
+        recorderType: RecordRTC.MediaStreamRecorder
       });
 
       console.log('MP4 recording started');
