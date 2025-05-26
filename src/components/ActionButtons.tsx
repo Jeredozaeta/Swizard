@@ -45,6 +45,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   };
 
   const cleanupExport = () => {
+    console.log('Cleaning up export resources');
     if (workerRef.current) {
       workerRef.current.terminate();
       workerRef.current = null;
@@ -86,16 +87,22 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       setExporting(true);
       setProgress(0);
 
+      console.log('Starting MP4 export process');
+
       // Initialize audio context and worker
       audioContextRef.current = new AudioContext();
+      console.log('Audio context created');
+
       workerRef.current = new Worker(
         new URL('../audio/audioWorker.ts', import.meta.url),
         { type: 'module' }
       );
+      console.log('Audio worker initialized');
 
       // Create audio processing nodes
       const destination = audioContextRef.current.createMediaStreamDestination();
       mediaStreamRef.current = destination.stream;
+      console.log('Audio destination created');
 
       // Initialize MediaRecorder with high quality settings
       mediaRecorderRef.current = new RecordRTC(mediaStreamRef.current, {
@@ -109,6 +116,9 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         audioBitsPerSecond: 320000
       });
 
+      console.log('MP4 recording started');
+      mediaRecorderRef.current.startRecording();
+
       // Set up worker message handling
       workerRef.current.onmessage = async (e) => {
         const { type, audioData, progress: currentProgress } = e.data;
@@ -116,27 +126,36 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         switch (type) {
           case 'chunk':
             if (audioData) {
+              console.log('Processing audio chunk');
               const audioBuffer = await audioContextRef.current!.decodeAudioData(audioData);
               const source = audioContextRef.current!.createBufferSource();
               source.buffer = audioBuffer;
               source.connect(destination);
               source.start();
+              console.log('Audio chunk connected to recorder');
             }
             setProgress(currentProgress);
             break;
 
           case 'complete':
+            console.log('Audio generation complete, stopping recording');
             mediaRecorderRef.current?.stopRecording(() => {
               const blob = mediaRecorderRef.current?.getBlob();
               if (blob) {
+                console.log(`MP4 blob created - ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = `swizard-${Date.now()}.mp4`;
                 document.body.appendChild(a);
+                console.log('MP4 download triggered');
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
+                console.log('MP4 export complete');
+              } else {
+                console.error('Failed to create MP4 blob');
+                toast.error('Export failed - no data generated');
               }
               cleanupExport();
               setExporting(false);
@@ -149,9 +168,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         }
       };
 
-      // Start recording
-      mediaRecorderRef.current.startRecording();
-
       // Start audio generation
       workerRef.current.postMessage({
         type: 'generate',
@@ -160,6 +176,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
           duration: selectedDuration
         }
       });
+
+      console.log('Audio generation started');
 
     } catch (error: any) {
       console.error('Export error:', error);

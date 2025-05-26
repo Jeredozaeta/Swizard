@@ -109,12 +109,14 @@ self.onmessage = async (e: MessageEvent) => {
 
       const numChunks = Math.ceil(duration / CHUNK_DURATION);
       self.postMessage({ type: 'start', totalChunks: numChunks });
+      console.log('Starting audio generation');
 
       for (let i = 0; i < numChunks; i++) {
         const startTime = i * CHUNK_DURATION;
         const chunkDuration = Math.min(CHUNK_DURATION, duration - startTime);
         
         const audioData = generateAudioChunk(channels, startTime, chunkDuration);
+        console.log(`Generated chunk ${i + 1}/${numChunks}`);
         
         self.postMessage({
           type: 'chunk',
@@ -130,6 +132,7 @@ self.onmessage = async (e: MessageEvent) => {
         }
       }
 
+      console.log('Audio generation complete');
       self.postMessage({ type: 'complete' });
     } catch (error) {
       console.error('Audio generation error:', error);
