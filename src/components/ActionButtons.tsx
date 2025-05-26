@@ -334,11 +334,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   };
 
   return (
-    <section className="mb-6">      
-      <div className="flex flex-nowrap overflow-x-auto md:overflow-visible md:flex-wrap justify-center gap-2 md:gap-3 px-4 md:px-0 -mx-4 md:mx-0 pb-4 md:pb-0 mb-4 md:mb-8">
+    <section className="fixed bottom-0 left-0 right-0 md:relative bg-[#1a0b2e]/95 md:bg-transparent backdrop-blur-md md:backdrop-blur-none z-50 md:z-auto py-3 px-4 md:py-0 md:px-0 md:mb-6 border-t border-purple-500/20 md:border-0">      
+      <div className="flex flex-nowrap overflow-x-auto md:overflow-visible md:flex-wrap justify-center items-center gap-2 md:gap-3 max-w-4xl mx-auto">
         <button
           onClick={togglePlayback}
-          className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0"
+          className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 min-w-[100px] md:min-w-0"
         >
           <Play className="h-4 w-4" />
           {state.isPlaying ? 'Stop' : 'Play'}
@@ -348,7 +348,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
           <button
             onClick={handleDownload}
             disabled={downloading || selectedDuration < 30 || exportStatus === 'error' || exportStatus === 'rendering'}
-            className={`btn btn-primary btn-sm whitespace-nowrap bg-gradient-to-r ${
+            className={`btn btn-primary btn-sm whitespace-nowrap bg-gradient-to-r min-w-[140px] md:min-w-0 ${
               exportStatus === 'ready'
                 ? 'from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500'
                 : 'from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500'
@@ -369,7 +369,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
 
         <button
           onClick={handleShare}
-          className={`btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 ${hasChanges ? 'animate-attention' : ''}`}
+          className={`btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 min-w-[120px] md:min-w-0 ${hasChanges ? 'animate-attention' : ''}`}
           title="Share your creation to inspire others"
         >
           <Sparkles className="h-4 w-4" />
@@ -378,7 +378,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         
         <button
           onClick={onShowPricing}
-          className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0"
+          className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 min-w-[90px] md:min-w-0"
         >
           <Crown className="h-4 w-4" />
           Go Pro

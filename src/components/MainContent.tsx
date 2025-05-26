@@ -123,7 +123,7 @@ const MainContent: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen text-white ${
+    <div className={`min-h-screen text-white pb-20 md:pb-0 ${
       performanceMode ? 'bg-[#030014]' : 'bg-gradient-to-b from-[#030014] via-[#1a0b2e] to-[#0f0720]'
     }`}>
       <div className="max-w-5xl mx-auto px-4 py-6">
