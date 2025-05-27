@@ -1,8 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { toast } from 'react-toastify';
-import { Crown, Sparkles, Save } from 'lucide-react';
+import { Crown, Sparkles, Save, Download } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import RecordRTC from 'recordrtc';
+import { renderOffline } from '../audio/offlineExport';
+import { buildToneGraph } from '../audio/buildToneGraph';
 
 interface ActionButtonsProps {
   onShowPricing: () => void;
@@ -50,7 +52,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const cleanupExport = () => {
     console.log('Cleaning up export resources');
     
-    // Stop and cleanup oscillators
     oscillatorNodesRef.current.forEach(osc => {
       try {
         osc.stop();
@@ -61,7 +62,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     });
     oscillatorNodesRef.current = [];
 
-    // Cleanup gain nodes
     gainNodesRef.current.forEach(gain => {
       try {
         gain.disconnect();
@@ -71,7 +71,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     });
     gainNodesRef.current = [];
 
-    // Cleanup master gain
     if (masterGainRef.current) {
       try {
         masterGainRef.current.disconnect();
@@ -81,7 +80,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       masterGainRef.current = null;
     }
 
-    // Cleanup destination
     if (destinationRef.current) {
       try {
         destinationRef.current.disconnect();
@@ -110,7 +108,40 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     setProgress(0);
   };
 
-  const handleExport = async () => {
+  const handleExportWav = async () => {
+    if (exporting) return;
+    
+    try {
+      setExporting(true);
+      setProgress(0);
+
+      const blob = await renderOffline({
+        durationSeconds: selectedDuration,
+        buildGraph: (ctx) => buildToneGraph(ctx, state.channels, state.effects)
+      });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `swizard-${Date.now()}.wav`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success('WAV export complete!', {
+        autoClose: 3000
+      });
+    } catch (error) {
+      console.error('WAV export error:', error);
+      toast.error('WAV export failed - please try again');
+    } finally {
+      setExporting(false);
+      setProgress(0);
+    }
+  };
+
+  const handleExportMp4 = async () => {
     if (selectedDuration < 1) {
       toast.error('Please select a valid duration', {
         autoClose: 5000,
@@ -133,48 +164,18 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       audioContextRef.current = new AudioContext();
       const ctx = audioContextRef.current;
 
-      // Create master gain for overall volume control
       masterGainRef.current = ctx.createGain();
       masterGainRef.current.gain.setValueAtTime(0.8, ctx.currentTime);
 
-      // Create MediaStream destination
       console.log('Creating MediaStream destination');
       destinationRef.current = ctx.createMediaStreamDestination();
       mediaStreamRef.current = destinationRef.current.stream;
       console.log('Media stream created:', mediaStreamRef.current.id);
 
-      // Connect master gain to destination
       masterGainRef.current.connect(destinationRef.current);
 
-      // Set up audio nodes for each enabled channel
-      console.log('Setting up audio nodes for enabled channels');
-      const enabledChannels = state.channels.filter(c => c.enabled);
-      console.log(`Active channels: ${enabledChannels.length}`);
-
-      enabledChannels.forEach((channel, index) => {
-        console.log(`Creating oscillator for channel ${index}:`, channel);
-        
-        // Create oscillator
-        const oscillator = ctx.createOscillator();
-        oscillator.type = channel.waveform;
-        oscillator.frequency.setValueAtTime(channel.frequency, ctx.currentTime);
-        
-        // Create channel gain node
-        const gainNode = ctx.createGain();
-        gainNode.gain.setValueAtTime(1.0 / enabledChannels.length, ctx.currentTime);
-        
-        // Connect channel nodes
-        oscillator.connect(gainNode);
-        gainNode.connect(masterGainRef.current!);
-        
-        // Store refs for cleanup
-        oscillatorNodesRef.current.push(oscillator);
-        gainNodesRef.current.push(gainNode);
-        
-        // Start oscillator
-        oscillator.start();
-        console.log(`Started oscillator ${index} at ${channel.frequency}Hz`);
-      });
+      const audioGraph = buildToneGraph(ctx, state.channels, state.effects);
+      audioGraph.connect(destinationRef.current);
 
       console.log('Initializing MediaRecorder');
       mediaRecorderRef.current = new RecordRTC(mediaStreamRef.current, {
@@ -195,7 +196,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       console.log('Starting recording');
       mediaRecorderRef.current.startRecording();
 
-      // Set up progress tracking
       let elapsedTime = 0;
       const progressInterval = setInterval(() => {
         if (!exporting) {
@@ -212,7 +212,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         }
       }, 1000);
 
-      // Stop recording after duration
       setTimeout(() => {
         console.log('Stopping recording');
         if (mediaRecorderRef.current) {
@@ -232,7 +231,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
               document.body.removeChild(a);
               URL.revokeObjectURL(url);
               
-              toast.success('Export complete!', {
+              toast.success('MP4 export complete!', {
                 autoClose: 3000
               });
             } else {
@@ -263,7 +262,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       }
       return `Rendering... ${Math.round(progress)}%`;
     }
-    return 'Export MP4';
+    return 'Export';
   };
 
   return (
@@ -276,14 +275,25 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
           {state.isPlaying ? 'Stop' : 'Play'}
         </button>
         
-        <button
-          onClick={handleExport}
-          disabled={exporting}
-          className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 shadow-lg hover:shadow-xl transition-all duration-300"
-        >
-          <Save className="h-4 w-4" />
-          {getExportButtonText()}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleExportWav}
+            disabled={exporting}
+            className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500"
+          >
+            <Download className="h-4 w-4" />
+            WAV
+          </button>
+
+          <button
+            onClick={handleExportMp4}
+            disabled={exporting}
+            className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500"
+          >
+            <Save className="h-4 w-4" />
+            MP4
+          </button>
+        </div>
 
         <button
           onClick={handleShare}
