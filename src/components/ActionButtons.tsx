@@ -2,8 +2,8 @@ import React, { useState, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { Crown, Sparkles, Save } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
-import RecordRTC from 'recordrtc';
 import { renderOffline } from '../audio/offlineExport';
+import { buildToneGraph } from '../audio/buildToneGraph';
 
 interface ActionButtonsProps {
   onShowPricing: () => void;
@@ -14,10 +14,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const { state, togglePlayback, sharePreset } = useAudio();
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
-  const workerRef = useRef<Worker | null>(null);
-  const mediaRecorderRef = useRef<RecordRTC | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
 
   const handleShare = async () => {
     try {
@@ -42,25 +38,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         pauseOnHover: true,
         closeButton: true
       });
-    }
-  };
-
-  const cleanupExport = () => {
-    if (workerRef.current) {
-      workerRef.current.terminate();
-      workerRef.current = null;
-    }
-    if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.destroy();
-      mediaRecorderRef.current = null;
-    }
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach(track => track.stop());
-      mediaStreamRef.current = null;
-    }
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
     }
   };
 
@@ -89,28 +66,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
 
       const blob = await renderOffline({
         durationSeconds: selectedDuration,
-        buildGraph: (ctx) => {
-          // Create oscillators for each channel
-          const oscillators = state.channels.filter(ch => ch.enabled).map(channel => {
-            const osc = ctx.createOscillator();
-            osc.type = channel.waveform;
-            osc.frequency.value = channel.frequency;
-            return osc;
-          });
-
-          // Create gain node for mixing
-          const gainNode = ctx.createGain();
-          gainNode.gain.value = 0.5; // Prevent clipping when mixing
-
-          // Connect oscillators to gain node
-          oscillators.forEach(osc => osc.connect(gainNode));
-          
-          // Start all oscillators
-          oscillators.forEach(osc => osc.start());
-
-          // Return the final node in the chain
-          return gainNode;
-        }
+        buildGraph: (ctx) => buildToneGraph(ctx, state.channels, state.effects)
       });
 
       const url = URL.createObjectURL(blob);
@@ -122,12 +78,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      toast.success('WAV export complete!', {
+      toast.success('Export complete!', {
         autoClose: 3000,
         pauseOnHover: true,
         closeButton: true
       });
-
     } catch (error: any) {
       console.error('Export error:', error);
       toast.error('Export failed - please try again', {
@@ -135,7 +90,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         pauseOnHover: true,
         closeButton: true
       });
-      cleanupExport();
     } finally {
       setExporting(false);
       setProgress(0);
