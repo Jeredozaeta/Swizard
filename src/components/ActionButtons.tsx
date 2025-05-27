@@ -1,9 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import { Crown, Sparkles, Save } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
-import RecordRTC from 'recordrtc';
-import { encodeWav } from '../audio/wavEncoder';
+import { renderOffline } from '../audio/offlineExport';
 
 interface ActionButtonsProps {
   onShowPricing: () => void;
@@ -14,16 +13,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const { state, togglePlayback, sharePreset } = useAudio();
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
-  const mediaRecorderRef = useRef<RecordRTC | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-  const oscillatorNodesRef = useRef<OscillatorNode[]>([]);
-  const gainNodesRef = useRef<GainNode[]>([]);
-  const masterGainRef = useRef<GainNode | null>(null);
-  const destinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
-  const audioBufferRef = useRef<Float32Array[]>([]);
-  const recordingStartTimeRef = useRef<number>(0);
-  const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
 
   const handleShare = async () => {
     try {
@@ -51,79 +40,9 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     }
   };
 
-  const cleanupExport = () => {
-    console.log('Cleaning up export resources');
-    
-    if (scriptProcessorRef.current) {
-      try {
-        scriptProcessorRef.current.disconnect();
-      } catch (e) {
-        console.warn('Error cleaning up script processor:', e);
-      }
-      scriptProcessorRef.current = null;
-    }
-
-    oscillatorNodesRef.current.forEach(osc => {
-      try {
-        osc.stop();
-        osc.disconnect();
-      } catch (e) {
-        console.warn('Error cleaning up oscillator:', e);
-      }
-    });
-    oscillatorNodesRef.current = [];
-
-    gainNodesRef.current.forEach(gain => {
-      try {
-        gain.disconnect();
-      } catch (e) {
-        console.warn('Error cleaning up gain node:', e);
-      }
-    });
-    gainNodesRef.current = [];
-
-    if (masterGainRef.current) {
-      try {
-        masterGainRef.current.disconnect();
-      } catch (e) {
-        console.warn('Error cleaning up master gain:', e);
-      }
-      masterGainRef.current = null;
-    }
-
-    if (destinationRef.current) {
-      try {
-        destinationRef.current.disconnect();
-      } catch (e) {
-        console.warn('Error cleaning up destination:', e);
-      }
-      destinationRef.current = null;
-    }
-
-    if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.destroy();
-      mediaRecorderRef.current = null;
-    }
-
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach(track => track.stop());
-      mediaStreamRef.current = null;
-    }
-
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-
-    audioBufferRef.current = [];
-    recordingStartTimeRef.current = 0;
-    setExporting(false);
-    setProgress(0);
-  };
-
   const handleExport = async () => {
-    if (selectedDuration < 1) {
-      toast.error('Please select a valid duration', {
+    if (selectedDuration < 30) {
+      toast.error('Please select a duration of at least 30 seconds', {
         autoClose: 5000,
         pauseOnHover: true,
         closeButton: true
@@ -132,7 +51,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     }
 
     if (exporting) {
-      console.log('Export already in progress');
+      toast.info('Export in progress...', {
+        autoClose: 3000,
+        pauseOnHover: true,
+        closeButton: true
+      });
       return;
     }
 
@@ -140,162 +63,44 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       setExporting(true);
       setProgress(0);
 
-      console.log('Initializing audio context and nodes');
-      audioContextRef.current = new AudioContext();
-      const ctx = audioContextRef.current;
-
-      // Initialize audio buffers for WAV export
-      const numChannels = 2; // Stereo output
-      const samplesPerChannel = Math.ceil(selectedDuration * ctx.sampleRate);
-      audioBufferRef.current = Array(numChannels).fill(null).map(() => new Float32Array(samplesPerChannel));
-
-      // Create master gain for overall volume control
-      masterGainRef.current = ctx.createGain();
-      masterGainRef.current.gain.setValueAtTime(0.8, ctx.currentTime);
-
-      // Create MediaStream destination for both MP4 and WAV export
-      console.log('Creating MediaStream destination');
-      destinationRef.current = ctx.createMediaStreamDestination();
-      mediaStreamRef.current = destinationRef.current.stream;
-      console.log('Media stream created:', mediaStreamRef.current.id);
-
-      // Create ScriptProcessor for capturing audio data
-      scriptProcessorRef.current = ctx.createScriptProcessor(4096, numChannels, numChannels);
-      scriptProcessorRef.current.onaudioprocess = (e) => {
-        if (!audioBufferRef.current || audioBufferRef.current.length < 2) {
-          console.warn('Audio buffers not initialized');
-          return;
-        }
-
-        if (!recordingStartTimeRef.current) {
-          recordingStartTimeRef.current = ctx.currentTime;
-        }
-
-        const inputL = e.inputBuffer.getChannelData(0);
-        const inputR = e.inputBuffer.getChannelData(1);
-        const offset = Math.floor((ctx.currentTime - recordingStartTimeRef.current) * ctx.sampleRate);
-
-        if (offset >= 0 && offset + inputL.length <= samplesPerChannel) {
-          try {
-            audioBufferRef.current[0].set(inputL, offset);
-            audioBufferRef.current[1].set(inputR, offset);
-          } catch (err) {
-            console.error('Buffer write error:', err);
-          }
-        }
-      };
-
-      // Connect master gain to both destinations
-      masterGainRef.current.connect(scriptProcessorRef.current);
-      scriptProcessorRef.current.connect(ctx.destination);
-      masterGainRef.current.connect(destinationRef.current);
-
-      // Set up audio nodes for each enabled channel
-      console.log('Setting up audio nodes for enabled channels');
-      const enabledChannels = state.channels.filter(c => c.enabled);
-      console.log(`Active channels: ${enabledChannels.length}`);
-
-      enabledChannels.forEach((channel, index) => {
-        console.log(`Creating oscillator for channel ${index}:`, channel);
-        
-        const oscillator = ctx.createOscillator();
-        oscillator.type = channel.waveform;
-        oscillator.frequency.setValueAtTime(channel.frequency, ctx.currentTime);
-        
-        const gainNode = ctx.createGain();
-        gainNode.gain.setValueAtTime(1.0 / enabledChannels.length, ctx.currentTime);
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(masterGainRef.current!);
-        
-        oscillatorNodesRef.current.push(oscillator);
-        gainNodesRef.current.push(gainNode);
-        
-        oscillator.start();
-        console.log(`Started oscillator ${index} at ${channel.frequency}Hz`);
-      });
-
-      console.log('Initializing MediaRecorder');
-      mediaRecorderRef.current = new RecordRTC(mediaStreamRef.current, {
-        type: 'video',
-        mimeType: 'video/mp4',
-        frameRate: 1,
-        quality: 1,
-        width: 1280,
-        height: 720,
-        videoBitsPerSecond: 8000000,
-        audioBitsPerSecond: 320000
-      });
-
-      console.log('Starting recording');
-      mediaRecorderRef.current.startRecording();
-
-      // Set up progress tracking
-      let elapsedTime = 0;
+      // Start progress updates
       const progressInterval = setInterval(() => {
-        if (!exporting) {
-          clearInterval(progressInterval);
-          return;
-        }
+        setProgress(prev => Math.min(prev + 1, 99));
+      }, selectedDuration * 10);
 
-        elapsedTime += 1;
-        const newProgress = (elapsedTime / selectedDuration) * 100;
-        setProgress(Math.min(newProgress, 100));
+      // Render audio offline
+      const blob = await renderOffline({
+        durationSeconds: selectedDuration,
+        frequencies: state.channels,
+        effects: state.effects
+      });
 
-        if (elapsedTime >= selectedDuration) {
-          clearInterval(progressInterval);
-        }
-      }, 1000);
+      clearInterval(progressInterval);
+      setProgress(100);
 
-      // Stop recording after duration
-      setTimeout(() => {
-        console.log('Stopping recording');
-        if (mediaRecorderRef.current) {
-          mediaRecorderRef.current.stopRecording(async () => {
-            // Export MP4
-            const mp4Blob = mediaRecorderRef.current?.getBlob();
-            if (mp4Blob && mp4Blob.size > 0) {
-              console.log(`MP4 blob created: ${(mp4Blob.size / 1024 / 1024).toFixed(2)} MB`);
-              const mp4Url = URL.createObjectURL(mp4Blob);
-              const mp4Link = document.createElement('a');
-              mp4Link.href = mp4Url;
-              mp4Link.download = `swizard-${Date.now()}.mp4`;
-              document.body.appendChild(mp4Link);
-              mp4Link.click();
-              document.body.removeChild(mp4Link);
-              URL.revokeObjectURL(mp4Url);
-            }
+      // Download file
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `swizard-${Date.now()}.wav`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
-            // Export WAV
-            const wavBuffer = encodeWav(audioBufferRef.current, ctx.sampleRate);
-            const wavBlob = new Blob([wavBuffer], { type: 'audio/wav' });
-            console.log(`WAV blob created: ${(wavBlob.size / 1024 / 1024).toFixed(2)} MB`);
-            const wavUrl = URL.createObjectURL(wavBlob);
-            const wavLink = document.createElement('a');
-            wavLink.href = wavUrl;
-            wavLink.download = `swizard-${Date.now()}.wav`;
-            document.body.appendChild(wavLink);
-            wavLink.click();
-            document.body.removeChild(wavLink);
-            URL.revokeObjectURL(wavUrl);
-
-            toast.success('Export complete!', {
-              autoClose: 3000
-            });
-            
-            cleanupExport();
-          });
-        }
-      }, selectedDuration * 1000);
-
-    } catch (error: any) {
+      toast.success('Export complete!', {
+        autoClose: 3000
+      });
+    } catch (error) {
       console.error('Export error:', error);
       toast.error('Export failed - please try again', {
         autoClose: 5000,
         pauseOnHover: true,
         closeButton: true
       });
-      cleanupExport();
+    } finally {
+      setExporting(false);
+      setProgress(0);
     }
   };
 
@@ -306,7 +111,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       }
       return `Rendering... ${Math.round(progress)}%`;
     }
-    return 'Export Audio';
+    return 'Export WAV';
   };
 
   return (
