@@ -1,5 +1,6 @@
 import * as Tone from 'tone';
 import { FrequencyChannel, AudioEffect } from '../types';
+import { encodeWav } from './wavEncoder';
 
 interface RenderOptions {
   durationSeconds: number;
@@ -8,115 +9,167 @@ interface RenderOptions {
 }
 
 export async function renderOffline({ durationSeconds, frequencies, effects }: RenderOptions): Promise<Blob> {
+  console.log('Starting offline render:', { durationSeconds, frequencies, effects });
+  
   const sampleRate = 48000;
-  const totalSamples = Math.ceil(durationSeconds * sampleRate);
-
+  const channels = 2; // Stereo output
+  
   // Create offline context
-  const offline = new Tone.OfflineContext(2, durationSeconds, sampleRate);
+  const offline = new Tone.OfflineContext(channels, durationSeconds, sampleRate);
   Tone.setContext(offline);
-
-  // Create master gain
-  const masterGain = new Tone.Gain(0.8).toDestination();
-
-  // Create oscillators for each enabled frequency
-  const enabledFrequencies = frequencies.filter(f => f.enabled);
-  enabledFrequencies.forEach(freq => {
-    const osc = new Tone.Oscillator({
-      type: freq.waveform,
-      frequency: freq.frequency,
-    }).connect(masterGain);
+  
+  try {
+    // Create master gain and compressor
+    const masterCompressor = new Tone.Compressor({
+      threshold: -24,
+      ratio: 12,
+      attack: 0.003,
+      release: 0.25
+    }).toDestination();
     
-    osc.volume.value = -20 - (20 * Math.log10(enabledFrequencies.length)); // Adjust for multiple oscillators
-    osc.start();
-  });
+    const masterGain = new Tone.Gain(0.8).connect(masterCompressor);
 
-  // Apply effects
-  let currentNode: Tone.ToneAudioNode = masterGain;
-  Object.entries(effects).forEach(([id, effect]) => {
-    if (!effect.enabled) return;
+    // Create and connect oscillators
+    const enabledFrequencies = frequencies.filter(f => f.enabled);
+    console.log('Setting up oscillators:', enabledFrequencies.length);
+    
+    enabledFrequencies.forEach(freq => {
+      const osc = new Tone.Oscillator({
+        type: freq.waveform,
+        frequency: freq.frequency,
+      }).connect(masterGain);
+      
+      // Normalize volume based on number of oscillators
+      const normalizedVolume = -12 - (6 * Math.log10(enabledFrequencies.length));
+      osc.volume.value = normalizedVolume;
+      
+      osc.start(0);
+      console.log(`Oscillator created: ${freq.frequency}Hz ${freq.waveform}`);
+    });
 
-    switch (id) {
-      case 'tremolo':
-        const tremolo = new Tone.Tremolo({
-          frequency: effect.value,
-          depth: 0.5,
-        }).connect(currentNode);
-        tremolo.start();
-        currentNode = tremolo;
-        break;
+    // Apply effects chain
+    let effectInput = masterGain;
+    
+    // Process each enabled effect
+    Object.entries(effects).forEach(([id, effect]) => {
+      if (!effect.enabled) return;
+      
+      console.log(`Applying effect: ${id}`, effect);
+      
+      switch (id) {
+        case 'tremolo': {
+          const tremolo = new Tone.Tremolo({
+            frequency: effect.value,
+            depth: 0.7,
+            spread: 180
+          }).connect(effectInput);
+          tremolo.start();
+          effectInput = tremolo;
+          break;
+        }
+        
+        case 'stereoPan': {
+          const panner = new Tone.AutoPanner({
+            frequency: effect.value,
+            depth: 1
+          }).connect(effectInput);
+          panner.start();
+          effectInput = panner;
+          break;
+        }
+        
+        case 'phaser': {
+          const phaser = new Tone.Phaser({
+            frequency: effect.value,
+            octaves: 3,
+            stages: 12,
+            Q: 10,
+            baseFrequency: 350
+          }).connect(effectInput);
+          effectInput = phaser;
+          break;
+        }
+        
+        case 'amplitudeMod': {
+          const am = new Tone.AMOscillator({
+            frequency: effect.value,
+            type: 'sine',
+            modulationType: 'square'
+          }).connect(effectInput);
+          am.start();
+          effectInput = am;
+          break;
+        }
+        
+        case 'pan360': {
+          const rotator = new Tone.AutoPanner({
+            frequency: effect.value,
+            depth: 1,
+            type: 'sine'
+          }).connect(effectInput);
+          rotator.start();
+          effectInput = rotator;
+          break;
+        }
+        
+        case 'isoPulses': {
+          const pulseGain = new Tone.Gain().connect(effectInput);
+          const lfo = new Tone.LFO({
+            frequency: effect.value,
+            min: 0,
+            max: 1,
+            type: 'square'
+          }).connect(pulseGain.gain);
+          lfo.start();
+          effectInput = pulseGain;
+          break;
+        }
+        
+        case 'chorus': {
+          const chorus = new Tone.Chorus({
+            frequency: effect.value,
+            delayTime: 3.5,
+            depth: 0.7,
+            spread: 180
+          }).connect(effectInput);
+          chorus.start();
+          effectInput = chorus;
+          break;
+        }
+        
+        case 'reverb': {
+          const reverb = new Tone.Reverb({
+            decay: effect.value / 30,
+            preDelay: 0.01
+          }).connect(effectInput);
+          effectInput = reverb;
+          break;
+        }
+      }
+    });
 
-      case 'stereoPan':
-        const panner = new Tone.AutoPanner({
-          frequency: effect.value,
-        }).connect(currentNode);
-        panner.start();
-        currentNode = panner;
-        break;
+    console.log('Starting render process...');
+    const renderedBuffer = await offline.render();
+    console.log('Render complete:', { 
+      duration: renderedBuffer.duration,
+      channels: renderedBuffer.numberOfChannels,
+      length: renderedBuffer.length
+    });
 
-      case 'phaser':
-        const phaser = new Tone.Phaser({
-          frequency: effect.value,
-          octaves: 2,
-          baseFrequency: 1000,
-        }).connect(currentNode);
-        currentNode = phaser;
-        break;
-
-      // Add other effects here...
+    // Extract channel data
+    const channelData: Float32Array[] = [];
+    for (let i = 0; i < renderedBuffer.numberOfChannels; i++) {
+      channelData.push(renderedBuffer.getChannelData(i));
     }
-  });
 
-  // Render audio
-  console.log(`Starting offline render: ${durationSeconds}s at ${sampleRate}Hz`);
-  const renderedBuffer = await offline.render();
-  console.log('Render complete, converting to WAV');
+    // Encode WAV file
+    const wavBuffer = encodeWav(channelData, sampleRate);
+    console.log('WAV encoding complete:', wavBuffer.byteLength, 'bytes');
 
-  // Convert to WAV format
-  const wavData = [];
-  for (let channel = 0; channel < renderedBuffer.numberOfChannels; channel++) {
-    wavData.push(renderedBuffer.getChannelData(channel));
-  }
-
-  // Create WAV file
-  const buffer = encodeWAV(wavData, sampleRate);
-  return new Blob([buffer], { type: 'audio/wav' });
-}
-
-function encodeWAV(channels: Float32Array[], sampleRate: number): ArrayBuffer {
-  const numChannels = channels.length;
-  const length = channels[0].length;
-  const buffer = new ArrayBuffer(44 + length * numChannels * 2);
-  const view = new DataView(buffer);
-
-  // Write WAV header
-  writeString(view, 0, 'RIFF');
-  view.setUint32(4, 36 + length * numChannels * 2, true);
-  writeString(view, 8, 'WAVE');
-  writeString(view, 12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, numChannels, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * numChannels * 2, true);
-  view.setUint16(32, numChannels * 2, true);
-  view.setUint16(34, 16, true);
-  writeString(view, 36, 'data');
-  view.setUint32(40, length * numChannels * 2, true);
-
-  // Write interleaved audio data
-  const offset = 44;
-  for (let i = 0; i < length; i++) {
-    for (let channel = 0; channel < numChannels; channel++) {
-      const sample = Math.max(-1, Math.min(1, channels[channel][i]));
-      view.setInt16(offset + (i * numChannels + channel) * 2, sample * 0x7FFF, true);
-    }
-  }
-
-  return buffer;
-}
-
-function writeString(view: DataView, offset: number, string: string): void {
-  for (let i = 0; i < string.length; i++) {
-    view.setUint8(offset + i, string.charCodeAt(i));
+    // Create and return blob
+    return new Blob([wavBuffer], { type: 'audio/wav' });
+  } catch (error) {
+    console.error('Render error:', error);
+    throw new Error(`Failed to render audio: ${error.message}`);
   }
 }

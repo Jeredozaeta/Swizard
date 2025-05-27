@@ -1,34 +1,54 @@
 // WAV file encoder for audio export
-export function encodeWav(chData: Float32Array[], sampleRate: number): ArrayBuffer {
-  const numCh = chData.length;
-  const numFrames = chData[0].length;
-  const bytesPerSample = 2;
-  const blockAlign = numCh * bytesPerSample;
+export function encodeWav(channelData: Float32Array[], sampleRate: number): ArrayBuffer {
+  const numChannels = channelData.length;
+  const numSamples = channelData[0].length;
+  const bytesPerSample = 2; // 16-bit PCM
+  const blockAlign = numChannels * bytesPerSample;
   const byteRate = sampleRate * blockAlign;
-  const dataSize = numFrames * blockAlign;
-  const buffer = new ArrayBuffer(44 + dataSize);
+  const dataSize = numSamples * blockAlign;
+  const totalSize = 44 + dataSize; // Header (44 bytes) + data
+
+  // Create buffer and view
+  const buffer = new ArrayBuffer(totalSize);
   const view = new DataView(buffer);
 
-  let offset = 0;
-  const writeStr = (s: string) => { for (let i = 0; i < s.length; i++) view.setUint8(offset++, s.charCodeAt(i)); };
-  const write32 = (v: number) => { view.setUint32(offset, v, true); offset += 4; };
-  const write16 = (v: number) => { view.setUint16(offset, v, true); offset += 2; };
-
   // Write WAV header
-  writeStr('RIFF');          write32(36 + dataSize);
-  writeStr('WAVEfmt ');      write32(16);           write16(1);
-  write16(numCh);            write32(sampleRate);   write32(byteRate);
-  write16(blockAlign);       write16(16);
-  writeStr('data');          write32(dataSize);
+  let offset = 0;
+  
+  // RIFF chunk descriptor
+  writeString(view, offset, 'RIFF'); offset += 4;
+  view.setUint32(offset, 36 + dataSize, true); offset += 4;
+  writeString(view, offset, 'WAVE'); offset += 4;
 
-  // Write audio data
-  const clamp = (v: number) => Math.max(-1, Math.min(1, v));
-  for (let i = 0; i < numFrames; i++) {
-    for (let ch = 0; ch < numCh; ch++) {
-      const s = Math.round(clamp(chData[ch][i]) * 0x7FFF);
-      view.setInt16(offset, s, true); offset += 2;
+  // fmt sub-chunk
+  writeString(view, offset, 'fmt '); offset += 4;
+  view.setUint32(offset, 16, true); offset += 4; // Subchunk size
+  view.setUint16(offset, 1, true); offset += 2; // Audio format (PCM)
+  view.setUint16(offset, numChannels, true); offset += 2;
+  view.setUint32(offset, sampleRate, true); offset += 4;
+  view.setUint32(offset, byteRate, true); offset += 4;
+  view.setUint16(offset, blockAlign, true); offset += 2;
+  view.setUint16(offset, bytesPerSample * 8, true); offset += 2;
+
+  // data sub-chunk
+  writeString(view, offset, 'data'); offset += 4;
+  view.setUint32(offset, dataSize, true); offset += 4;
+
+  // Write interleaved audio data
+  for (let i = 0; i < numSamples; i++) {
+    for (let channel = 0; channel < numChannels; channel++) {
+      const sample = Math.max(-1, Math.min(1, channelData[channel][i]));
+      const int16 = Math.round(sample * 32767);
+      view.setInt16(offset, int16, true);
+      offset += 2;
     }
   }
 
   return buffer;
+}
+
+function writeString(view: DataView, offset: number, str: string): void {
+  for (let i = 0; i < str.length; i++) {
+    view.setUint8(offset + i, str.charCodeAt(i));
+  }
 }
