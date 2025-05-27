@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { Crown, Sparkles, Save } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
+import RecordRTC from 'recordrtc';
 
 interface ActionButtonsProps {
   onShowPricing: () => void;
@@ -13,6 +14,9 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const workerRef = useRef<Worker | null>(null);
+  const mediaRecorderRef = useRef<RecordRTC | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
 
   const handleShare = async () => {
     try {
@@ -40,22 +44,33 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     }
   };
 
-  const handleExport = async () => {
-    if (selectedDuration < 30) {
-      toast.error('Please select a duration of at least 30 seconds', {
-        autoClose: 5000,
-        pauseOnHover: true,
-        closeButton: true
-      });
-      return;
+  const cleanupExport = () => {
+    console.log('Cleaning up export resources');
+    if (workerRef.current) {
+      workerRef.current.terminate();
+      workerRef.current = null;
     }
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.destroy();
+      mediaRecorderRef.current = null;
+    }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      mediaStreamRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+  };
+
+  const handleExport = async () => {
+    // For testing, temporarily override duration to 1 second
+    const testDuration = 1;
+    console.log('Starting export with test duration:', testDuration);
 
     if (exporting) {
-      toast.info('Export in progress...', {
-        autoClose: 3000,
-        pauseOnHover: true,
-        closeButton: true
-      });
+      console.log('Export already in progress');
       return;
     }
 
@@ -63,26 +78,77 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       setExporting(true);
       setProgress(0);
 
+      console.log('Initializing audio context');
+      audioContextRef.current = new AudioContext();
+
+      console.log('Creating worker');
       workerRef.current = new Worker(
         new URL('../audio/audioWorker.ts', import.meta.url),
         { type: 'module' }
       );
 
+      console.log('Setting up audio nodes');
+      const destination = audioContextRef.current.createMediaStreamDestination();
+      mediaStreamRef.current = destination.stream;
+      console.log('Media stream created:', mediaStreamRef.current.id);
+
+      console.log('Initializing MediaRecorder');
+      mediaRecorderRef.current = new RecordRTC(mediaStreamRef.current, {
+        type: 'video',
+        mimeType: 'video/mp4',
+        frameRate: 1,
+        quality: 1,
+        width: 1280,
+        height: 720,
+        videoBitsPerSecond: 8000000,
+        audioBitsPerSecond: 320000
+      });
+
+      console.log('Starting recording');
+      mediaRecorderRef.current.startRecording();
+
       workerRef.current.onmessage = async (e) => {
+        console.log('Worker message received:', e.data.type);
         const { type, audioData, progress: currentProgress } = e.data;
 
         switch (type) {
           case 'chunk':
+            if (audioData) {
+              console.log('Processing audio chunk');
+              const audioBuffer = await audioContextRef.current!.decodeAudioData(audioData);
+              const source = audioContextRef.current!.createBufferSource();
+              source.buffer = audioBuffer;
+              source.connect(destination);
+              source.start();
+              console.log('Audio chunk connected to recorder');
+            }
             setProgress(currentProgress);
             break;
 
           case 'complete':
-            if (workerRef.current) {
-              workerRef.current.terminate();
-              workerRef.current = null;
-            }
-            setExporting(false);
-            setProgress(0);
+            console.log('Audio generation complete, stopping recording');
+            mediaRecorderRef.current?.stopRecording(() => {
+              const blob = mediaRecorderRef.current?.getBlob();
+              if (blob) {
+                console.log(`MP4 blob created - ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `swizard-${Date.now()}.mp4`;
+                document.body.appendChild(a);
+                console.log('Triggering download');
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                console.log('Download complete');
+              } else {
+                console.error('Failed to create MP4 blob');
+                toast.error('Export failed - no data generated');
+              }
+              cleanupExport();
+              setExporting(false);
+              setProgress(0);
+            });
             break;
 
           case 'error':
@@ -90,11 +156,12 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         }
       };
 
+      console.log('Starting audio generation');
       workerRef.current.postMessage({
         type: 'generate',
         data: {
           channels: state.channels,
-          duration: selectedDuration
+          duration: testDuration // Use test duration
         }
       });
 
@@ -105,10 +172,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         pauseOnHover: true,
         closeButton: true
       });
-      if (workerRef.current) {
-        workerRef.current.terminate();
-        workerRef.current = null;
-      }
+      cleanupExport();
       setExporting(false);
       setProgress(0);
     }
@@ -136,7 +200,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         
         <button
           onClick={handleExport}
-          disabled={exporting || selectedDuration < 30}
+          disabled={exporting}
           className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 shadow-lg hover:shadow-xl transition-all duration-300"
         >
           <Save className="h-4 w-4" />
