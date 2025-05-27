@@ -23,6 +23,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const destinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
   const audioBufferRef = useRef<Float32Array[]>([]);
   const recordingStartTimeRef = useRef<number>(0);
+  const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
 
   const handleShare = async () => {
     try {
@@ -53,6 +54,15 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const cleanupExport = () => {
     console.log('Cleaning up export resources');
     
+    if (scriptProcessorRef.current) {
+      try {
+        scriptProcessorRef.current.disconnect();
+      } catch (e) {
+        console.warn('Error cleaning up script processor:', e);
+      }
+      scriptProcessorRef.current = null;
+    }
+
     oscillatorNodesRef.current.forEach(osc => {
       try {
         osc.stop();
@@ -106,6 +116,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     }
 
     audioBufferRef.current = [];
+    recordingStartTimeRef.current = 0;
     setExporting(false);
     setProgress(0);
   };
@@ -149,8 +160,13 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       console.log('Media stream created:', mediaStreamRef.current.id);
 
       // Create ScriptProcessor for capturing audio data
-      const scriptProcessor = ctx.createScriptProcessor(4096, numChannels, numChannels);
-      scriptProcessor.onaudioprocess = (e) => {
+      scriptProcessorRef.current = ctx.createScriptProcessor(4096, numChannels, numChannels);
+      scriptProcessorRef.current.onaudioprocess = (e) => {
+        if (!audioBufferRef.current || audioBufferRef.current.length < 2) {
+          console.warn('Audio buffers not initialized');
+          return;
+        }
+
         if (!recordingStartTimeRef.current) {
           recordingStartTimeRef.current = ctx.currentTime;
         }
@@ -159,15 +175,19 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         const inputR = e.inputBuffer.getChannelData(1);
         const offset = Math.floor((ctx.currentTime - recordingStartTimeRef.current) * ctx.sampleRate);
 
-        if (offset + inputL.length <= samplesPerChannel) {
-          audioBufferRef.current[0].set(inputL, offset);
-          audioBufferRef.current[1].set(inputR, offset);
+        if (offset >= 0 && offset + inputL.length <= samplesPerChannel) {
+          try {
+            audioBufferRef.current[0].set(inputL, offset);
+            audioBufferRef.current[1].set(inputR, offset);
+          } catch (err) {
+            console.error('Buffer write error:', err);
+          }
         }
       };
 
       // Connect master gain to both destinations
-      masterGainRef.current.connect(scriptProcessor);
-      scriptProcessor.connect(ctx.destination);
+      masterGainRef.current.connect(scriptProcessorRef.current);
+      scriptProcessorRef.current.connect(ctx.destination);
       masterGainRef.current.connect(destinationRef.current);
 
       // Set up audio nodes for each enabled channel
