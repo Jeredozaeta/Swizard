@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { Crown, Sparkles, Save } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
-import { chunkedOfflineExport } from '../audio/chunkedOfflineExport';
+import { slicedExport } from '../audio/slicedExport';
 
 interface ActionButtonsProps {
   onShowPricing: () => void;
@@ -13,7 +13,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const { state, togglePlayback, sharePreset } = useAudio();
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
-  const downloadLinkRef = useRef<HTMLAnchorElement | null>(null);
+  const [currentSlice, setCurrentSlice] = useState<number>(0);
+  const [totalSlices, setTotalSlices] = useState<number>(0);
 
   const handleShare = async () => {
     try {
@@ -41,6 +42,25 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     }
   };
 
+  const triggerDownload = (blob: Blob, filename: string): Promise<void> => {
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      console.log('download-triggered');
+      document.body.removeChild(a);
+
+      // Clean up after download starts
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+        resolve();
+      }, 1000);
+    });
+  };
+
   const handleExport = async () => {
     if (selectedDuration < 30) {
       toast.error('Please select a duration of at least 30 seconds', {
@@ -63,56 +83,44 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     try {
       setExporting(true);
       setProgress(0);
+      setCurrentSlice(0);
+      setTotalSlices(0);
 
-      const blob = await chunkedOfflineExport({
+      const timestamp = Date.now();
+      const blobs = await slicedExport({
         durationSeconds: selectedDuration,
         frequencies: state.channels,
         effects: state.effects,
-        onProgress: setProgress
+        onProgress: setProgress,
+        onSliceComplete: (slice, total) => {
+          setCurrentSlice(slice);
+          setTotalSlices(total);
+          toast.success(`Slice ${slice} of ${total} complete`, {
+            autoClose: 2000
+          });
+        }
       });
 
-      const filename = `swizard-export-${Date.now()}.wav`;
-      const url = URL.createObjectURL(blob);
+      // Download each slice
+      for (let i = 0; i < blobs.length; i++) {
+        const filename = blobs.length === 1
+          ? `swizard-export-${timestamp}.wav`
+          : `swizard-export-${timestamp}-part-${i + 1}.wav`;
 
-      // Create and trigger download
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      console.log('download-triggered');
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+        await triggerDownload(blobs[i], filename);
 
-      // Create fallback link if download doesn't start
-      setTimeout(() => {
-        if (!downloadLinkRef.current) {
-          const fallbackToast = toast.info(
-            <div>
-              Browser blocked automatic download – 
-              <a 
-                href={url}
-                download={filename}
-                onClick={() => {
-                  setTimeout(() => URL.revokeObjectURL(url), 1000);
-                  if (fallbackToast) toast.dismiss(fallbackToast);
-                }}
-                className="text-blue-400 hover:text-blue-300 underline ml-1"
-              >
-                click here
-              </a>
-            </div>,
-            { autoClose: false }
-          );
+        // Small delay between downloads
+        if (i < blobs.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
-      }, 1000);
+      }
 
       toast.success('Export complete!', {
-        autoClose: 3000
+        autoClose: 4000
       });
     } catch (error) {
       console.error('Export error:', error);
-      toast.error('Export failed - please try again', {
+      toast.error('Export failed - see console for details', {
         autoClose: 5000,
         pauseOnHover: true,
         closeButton: true
@@ -120,11 +128,16 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     } finally {
       setExporting(false);
       setProgress(0);
+      setCurrentSlice(0);
+      setTotalSlices(0);
     }
   };
 
   const getExportButtonText = () => {
     if (exporting) {
+      if (totalSlices > 1) {
+        return `Rendering slice ${currentSlice}/${totalSlices}... ${Math.round(progress)}%`;
+      }
       if (progress === 100) {
         return 'Finalizing...';
       }
