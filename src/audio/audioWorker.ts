@@ -69,9 +69,13 @@ const generateAudioChunk = (
   duration: number,
   sampleRate: number = SAMPLE_RATE
 ): Float32Array => {
+  console.log(`Generating audio chunk: startTime=${startTime}, duration=${duration}`);
+  
   const numSamples = Math.floor(duration * sampleRate);
   const buffer = new Float32Array(numSamples * CHANNELS);
   const enabledChannels = channels.filter(c => c.enabled);
+
+  console.log(`Enabled channels: ${enabledChannels.length}, Total samples: ${numSamples}`);
 
   for (let i = 0; i < numSamples; i++) {
     const t = startTime + (i / sampleRate);
@@ -89,6 +93,7 @@ const generateAudioChunk = (
     buffer[i * CHANNELS + 1] = rightSample / normalizer;
   }
 
+  console.log(`Audio chunk generated: ${buffer.length} samples`);
   return buffer;
 };
 
@@ -98,8 +103,10 @@ self.onmessage = async (e: MessageEvent) => {
   if (type === 'generate') {
     try {
       const { channels, duration } = data;
+      console.log(`Starting audio generation: duration=${duration}s`);
 
       if (duration > MAX_DURATION) {
+        console.error(`Duration exceeds maximum: ${duration}s > ${MAX_DURATION}s`);
         self.postMessage({ 
           type: 'error', 
           error: `Duration cannot exceed ${MAX_DURATION} seconds (12 hours)`
@@ -109,14 +116,15 @@ self.onmessage = async (e: MessageEvent) => {
 
       const numChunks = Math.ceil(duration / CHUNK_DURATION);
       self.postMessage({ type: 'start', totalChunks: numChunks });
-      console.log('Starting audio generation');
+      console.log(`Audio generation started: ${numChunks} chunks`);
 
       for (let i = 0; i < numChunks; i++) {
         const startTime = i * CHUNK_DURATION;
         const chunkDuration = Math.min(CHUNK_DURATION, duration - startTime);
         
+        console.log(`Generating chunk ${i + 1}/${numChunks}: duration=${chunkDuration}s`);
         const audioData = generateAudioChunk(channels, startTime, chunkDuration);
-        console.log(`Generated chunk ${i + 1}/${numChunks}`);
+        console.log(`Chunk ${i + 1} generated: ${audioData.length} samples`);
         
         self.postMessage({
           type: 'chunk',

@@ -91,7 +91,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
 
       // Initialize audio context and worker
       audioContextRef.current = new AudioContext();
-      console.log('Audio context created');
+      console.log('Audio context created:', audioContextRef.current.state);
 
       workerRef.current = new Worker(
         new URL('../audio/audioWorker.ts', import.meta.url),
@@ -102,7 +102,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       // Create audio processing nodes
       const destination = audioContextRef.current.createMediaStreamDestination();
       mediaStreamRef.current = destination.stream;
-      console.log('Audio destination created');
+      console.log('Audio destination created, stream tracks:', mediaStreamRef.current.getTracks().length);
 
       // Initialize MediaRecorder with high quality settings
       mediaRecorderRef.current = new RecordRTC(mediaStreamRef.current, {
