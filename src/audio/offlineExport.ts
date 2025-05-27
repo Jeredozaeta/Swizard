@@ -11,7 +11,7 @@ export async function renderOffline({
   sampleRate = 44100,
   buildGraph
 }: RenderConfig): Promise<Blob> {
-  const CHUNK_SEC = 120;
+  const CHUNK_SEC = 120; // Process in 2-minute chunks to manage memory
   const totalChunks = Math.ceil(durationSeconds / CHUNK_SEC);
   const channelData: Float32Array[] = [];
 
@@ -21,14 +21,22 @@ export async function renderOffline({
     const sliceLenSec = Math.min(CHUNK_SEC, durationSeconds - i * CHUNK_SEC);
     const length = Math.round(sliceLenSec * sampleRate);
 
-    const oac = new OfflineAudioContext({ numberOfChannels: 2, length, sampleRate });
+    const oac = new OfflineAudioContext({ 
+      numberOfChannels: 2, 
+      length, 
+      sampleRate 
+    });
+
     const graphOut = buildGraph(oac);
     graphOut.connect(oac.destination);
 
     const sliceBuffer = await oac.startRendering();
 
+    // Append chunk data to output buffers
     for (let ch = 0; ch < 2; ch++) {
-      if (!channelData[ch]) channelData[ch] = new Float32Array(durationSeconds * sampleRate);
+      if (!channelData[ch]) {
+        channelData[ch] = new Float32Array(durationSeconds * sampleRate);
+      }
       channelData[ch].set(sliceBuffer.getChannelData(ch), renderedFrames);
     }
     renderedFrames += length;

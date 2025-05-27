@@ -1,4 +1,3 @@
-// WAV file encoder utility
 export function encodeWav(channelData: Float32Array[], sampleRate: number): ArrayBuffer {
   const numChannels = channelData.length;
   const numSamples = channelData[0].length;
