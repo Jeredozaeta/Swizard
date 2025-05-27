@@ -1,34 +1,3 @@
-// Audio processing worklet
-class AudioProcessor extends AudioWorkletProcessor {
-  static get parameterDescriptors() {
-    return [{
-      name: 'gain',
-      defaultValue: 1,
-      minValue: 0,
-      maxValue: 1
-    }];
-  }
-
-  process(inputs: Float32Array[][], outputs: Float32Array[][], parameters: Record<string, Float32Array>) {
-    const input = inputs[0];
-    const output = outputs[0];
-    const gain = parameters.gain;
-
-    for (let channel = 0; channel < output.length; ++channel) {
-      const inputChannel = input[channel];
-      const outputChannel = output[channel];
-
-      for (let i = 0; i < outputChannel.length; ++i) {
-        outputChannel[i] = inputChannel[i] * gain[i];
-      }
-    }
-
-    return true;
-  }
-}
-
-registerProcessor('audio-processor', AudioProcessor);
-
 // Constants for audio configuration
 const SAMPLE_RATE = 48000;
 const CHANNELS = 2;
@@ -118,21 +87,24 @@ self.onmessage = async (e: MessageEvent) => {
       self.postMessage({ type: 'start', totalChunks: numChunks });
       console.log(`Audio generation started: ${numChunks} chunks`);
 
+      const audioData = new Float32Array(duration * SAMPLE_RATE * CHANNELS);
+      let offset = 0;
+
       for (let i = 0; i < numChunks; i++) {
         const startTime = i * CHUNK_DURATION;
         const chunkDuration = Math.min(CHUNK_DURATION, duration - startTime);
         
         console.log(`Generating chunk ${i + 1}/${numChunks}: duration=${chunkDuration}s`);
-        const audioData = generateAudioChunk(channels, startTime, chunkDuration);
-        console.log(`Chunk ${i + 1} generated: ${audioData.length} samples`);
+        const chunkData = generateAudioChunk(channels, startTime, chunkDuration);
+        console.log(`Chunk ${i + 1} generated: ${chunkData.length} samples`);
         
+        audioData.set(chunkData, offset);
+        offset += chunkData.length;
+
         self.postMessage({
           type: 'chunk',
-          audioData: audioData.buffer,
-          isFirstChunk: i === 0,
-          isLastChunk: i === numChunks - 1,
           progress: ((i + 1) / numChunks) * 100
-        }, [audioData.buffer]);
+        });
 
         // Yield to main thread periodically
         if (i % 2 === 1) {
@@ -140,8 +112,45 @@ self.onmessage = async (e: MessageEvent) => {
         }
       }
 
-      console.log('Audio generation complete');
-      self.postMessage({ type: 'complete' });
+      // Create WAV file
+      const wavHeader = new ArrayBuffer(44);
+      const view = new DataView(wavHeader);
+
+      // "RIFF" chunk descriptor
+      view.setUint32(0, 0x52494646, false); // "RIFF"
+      view.setUint32(4, 36 + audioData.length * 2, true); // File size
+      view.setUint32(8, 0x57415645, false); // "WAVE"
+
+      // "fmt " sub-chunk
+      view.setUint32(12, 0x666D7420, false); // "fmt "
+      view.setUint32(16, 16, true); // Subchunk size
+      view.setUint16(20, 1, true); // Audio format (PCM)
+      view.setUint16(22, CHANNELS, true); // Channels
+      view.setUint32(24, SAMPLE_RATE, true); // Sample rate
+      view.setUint32(28, SAMPLE_RATE * CHANNELS * 2, true); // Byte rate
+      view.setUint16(32, CHANNELS * 2, true); // Block align
+      view.setUint16(34, 16, true); // Bits per sample
+
+      // "data" sub-chunk
+      view.setUint32(36, 0x64617461, false); // "data"
+      view.setUint32(40, audioData.length * 2, true); // Data size
+
+      // Convert audio data to 16-bit PCM
+      const pcmData = new Int16Array(audioData.length);
+      for (let i = 0; i < audioData.length; i++) {
+        const s = Math.max(-1, Math.min(1, audioData[i]));
+        pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      }
+
+      // Combine header and data
+      const wavBlob = new Blob([wavHeader, pcmData], { type: 'audio/wav' });
+
+      // Post the WAV blob back to the main thread
+      self.postMessage({
+        type: 'complete',
+        wavBlob
+      }, []);
+
     } catch (error) {
       console.error('Audio generation error:', error);
       self.postMessage({ 
