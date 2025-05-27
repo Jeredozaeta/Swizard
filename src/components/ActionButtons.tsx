@@ -156,3 +156,5 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     </section>
   );
 };
+
+export default ActionButtons
