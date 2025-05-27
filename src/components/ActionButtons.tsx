@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { Crown, Sparkles, Save } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import RecordRTC from 'recordrtc';
+import { renderOffline } from '../audio/offlineExport';
 
 interface ActionButtonsProps {
   onShowPricing: () => void;
@@ -86,75 +87,45 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       setExporting(true);
       setProgress(0);
 
-      audioContextRef.current = new AudioContext();
-      const destination = audioContextRef.current.createMediaStreamDestination();
-      mediaStreamRef.current = destination.stream;
+      const blob = await renderOffline({
+        durationSeconds: selectedDuration,
+        buildGraph: (ctx) => {
+          // Create oscillators for each channel
+          const oscillators = state.channels.filter(ch => ch.enabled).map(channel => {
+            const osc = ctx.createOscillator();
+            osc.type = channel.waveform;
+            osc.frequency.value = channel.frequency;
+            return osc;
+          });
 
-      mediaRecorderRef.current = new RecordRTC(mediaStreamRef.current, {
-        type: 'video',
-        mimeType: 'video/mp4',
-        frameRate: 1,
-        quality: 1,
-        width: 1280,
-        height: 720,
-        videoBitsPerSecond: 8000000,
-        audioBitsPerSecond: 320000
+          // Create gain node for mixing
+          const gainNode = ctx.createGain();
+          gainNode.gain.value = 0.5; // Prevent clipping when mixing
+
+          // Connect oscillators to gain node
+          oscillators.forEach(osc => osc.connect(gainNode));
+          
+          // Start all oscillators
+          oscillators.forEach(osc => osc.start());
+
+          // Return the final node in the chain
+          return gainNode;
+        }
       });
 
-      mediaRecorderRef.current.startRecording();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `swizard-${Date.now()}.wav`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
-      workerRef.current = new Worker(
-        new URL('../audio/audioWorker.ts', import.meta.url),
-        { type: 'module' }
-      );
-
-      workerRef.current.onmessage = async (e) => {
-        const { type, audioData, progress: currentProgress } = e.data;
-
-        switch (type) {
-          case 'chunk':
-            if (audioData) {
-              const audioBuffer = await audioContextRef.current!.decodeAudioData(audioData);
-              const source = audioContextRef.current!.createBufferSource();
-              source.buffer = audioBuffer;
-              source.connect(destination);
-              source.start();
-            }
-            setProgress(currentProgress);
-            break;
-
-          case 'complete':
-            mediaRecorderRef.current?.stopRecording(() => {
-              const blob = mediaRecorderRef.current?.getBlob();
-              if (blob) {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `swizard-${Date.now()}.mp4`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-              } else {
-                toast.error('Export failed - no data generated');
-              }
-              cleanupExport();
-              setExporting(false);
-              setProgress(0);
-            });
-            break;
-
-          case 'error':
-            throw new Error(e.data.error);
-        }
-      };
-
-      workerRef.current.postMessage({
-        type: 'generate',
-        data: {
-          channels: state.channels,
-          duration: selectedDuration
-        }
+      toast.success('WAV export complete!', {
+        autoClose: 3000,
+        pauseOnHover: true,
+        closeButton: true
       });
 
     } catch (error: any) {
@@ -165,6 +136,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         closeButton: true
       });
       cleanupExport();
+    } finally {
       setExporting(false);
       setProgress(0);
     }
@@ -177,7 +149,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       }
       return `Rendering... ${Math.round(progress)}%`;
     }
-    return 'Export MP4';
+    return 'Export WAV';
   };
 
   return (
