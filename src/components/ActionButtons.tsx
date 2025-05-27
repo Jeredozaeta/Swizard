@@ -48,9 +48,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   };
 
   const cleanupExport = () => {
-    console.log('Cleaning up export resources');
-    
-    // Stop and cleanup oscillators
     oscillatorNodesRef.current.forEach(osc => {
       try {
         osc.stop();
@@ -61,7 +58,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     });
     oscillatorNodesRef.current = [];
 
-    // Cleanup gain nodes
     gainNodesRef.current.forEach(gain => {
       try {
         gain.disconnect();
@@ -71,7 +67,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     });
     gainNodesRef.current = [];
 
-    // Cleanup master gain
     if (masterGainRef.current) {
       try {
         masterGainRef.current.disconnect();
@@ -81,7 +76,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       masterGainRef.current = null;
     }
 
-    // Cleanup destination
     if (destinationRef.current) {
       try {
         destinationRef.current.disconnect();
@@ -120,63 +114,46 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       return;
     }
 
-    if (exporting) {
-      console.log('Export already in progress');
-      return;
-    }
+    if (exporting) return;
 
     try {
       setExporting(true);
       setProgress(0);
 
-      console.log('Initializing audio context and nodes');
       audioContextRef.current = new AudioContext();
       const ctx = audioContextRef.current;
 
-      // Create master gain for overall volume control
+      // Create master gain
       masterGainRef.current = ctx.createGain();
       masterGainRef.current.gain.setValueAtTime(0.8, ctx.currentTime);
 
       // Create MediaStream destination
-      console.log('Creating MediaStream destination');
       destinationRef.current = ctx.createMediaStreamDestination();
       mediaStreamRef.current = destinationRef.current.stream;
-      console.log('Media stream created:', mediaStreamRef.current.id);
 
       // Connect master gain to destination
       masterGainRef.current.connect(destinationRef.current);
 
       // Set up audio nodes for each enabled channel
-      console.log('Setting up audio nodes for enabled channels');
       const enabledChannels = state.channels.filter(c => c.enabled);
-      console.log(`Active channels: ${enabledChannels.length}`);
 
       enabledChannels.forEach((channel, index) => {
-        console.log(`Creating oscillator for channel ${index}:`, channel);
-        
-        // Create oscillator
         const oscillator = ctx.createOscillator();
         oscillator.type = channel.waveform;
         oscillator.frequency.setValueAtTime(channel.frequency, ctx.currentTime);
         
-        // Create channel gain node
         const gainNode = ctx.createGain();
         gainNode.gain.setValueAtTime(1.0 / enabledChannels.length, ctx.currentTime);
         
-        // Connect channel nodes
         oscillator.connect(gainNode);
         gainNode.connect(masterGainRef.current!);
         
-        // Store refs for cleanup
         oscillatorNodesRef.current.push(oscillator);
         gainNodesRef.current.push(gainNode);
         
-        // Start oscillator
         oscillator.start();
-        console.log(`Started oscillator ${index} at ${channel.frequency}Hz`);
       });
 
-      console.log('Initializing MediaRecorder');
       mediaRecorderRef.current = new RecordRTC(mediaStreamRef.current, {
         type: 'video',
         mimeType: 'video/mp4',
@@ -185,17 +162,12 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         width: 1280,
         height: 720,
         videoBitsPerSecond: 8000000,
-        audioBitsPerSecond: 320000,
-        timeSlice: 1000,
-        ondataavailable: (blob: Blob) => {
-          console.log('Data chunk available:', blob.size, 'bytes');
-        }
+        audioBitsPerSecond: 320000
       });
 
-      console.log('Starting recording');
       mediaRecorderRef.current.startRecording();
 
-      // Set up progress tracking
+      // Progress tracking
       let elapsedTime = 0;
       const progressInterval = setInterval(() => {
         if (!exporting) {
@@ -214,20 +186,16 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
 
       // Stop recording after duration
       setTimeout(() => {
-        console.log('Stopping recording');
         if (mediaRecorderRef.current) {
           mediaRecorderRef.current.stopRecording(() => {
             const blob = mediaRecorderRef.current?.getBlob();
             
             if (blob && blob.size > 0) {
-              console.log(`MP4 blob created: ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
               a.download = `swizard-${Date.now()}.mp4`;
               document.body.appendChild(a);
-              
-              console.log('Triggering download');
               a.click();
               document.body.removeChild(a);
               URL.revokeObjectURL(url);
@@ -236,7 +204,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
                 autoClose: 3000
               });
             } else {
-              console.error('Invalid blob:', blob);
               toast.error('Export failed - no audio data generated');
             }
             
@@ -246,7 +213,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       }, selectedDuration * 1000);
 
     } catch (error: any) {
-      console.error('Export error:', error);
       toast.error('Export failed - please try again', {
         autoClose: 5000,
         pauseOnHover: true,
