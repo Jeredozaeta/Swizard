@@ -17,6 +17,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const mediaRecorderRef = useRef<RecordRTC | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
+  const oscillatorNodesRef = useRef<OscillatorNode[]>([]);
+  const gainNodesRef = useRef<GainNode[]>([]);
 
   const handleShare = async () => {
     try {
@@ -46,6 +48,28 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
 
   const cleanupExport = () => {
     console.log('Cleaning up export resources');
+    
+    // Stop and disconnect oscillators
+    oscillatorNodesRef.current.forEach(osc => {
+      try {
+        osc.stop();
+        osc.disconnect();
+      } catch (e) {
+        console.warn('Error cleaning up oscillator:', e);
+      }
+    });
+    oscillatorNodesRef.current = [];
+
+    // Clean up gain nodes
+    gainNodesRef.current.forEach(gain => {
+      try {
+        gain.disconnect();
+      } catch (e) {
+        console.warn('Error cleaning up gain node:', e);
+      }
+    });
+    gainNodesRef.current = [];
+
     if (workerRef.current) {
       workerRef.current.terminate();
       workerRef.current = null;
@@ -65,9 +89,14 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   };
 
   const handleExport = async () => {
-    // For testing, temporarily override duration to 1 second
-    const testDuration = 1;
-    console.log('Starting export with test duration:', testDuration);
+    if (selectedDuration < 1) {
+      toast.error('Please select a valid duration', {
+        autoClose: 5000,
+        pauseOnHover: true,
+        closeButton: true
+      });
+      return;
+    }
 
     if (exporting) {
       console.log('Export already in progress');
@@ -80,17 +109,39 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
 
       console.log('Initializing audio context');
       audioContextRef.current = new AudioContext();
+      const ctx = audioContextRef.current;
 
-      console.log('Creating worker');
-      workerRef.current = new Worker(
-        new URL('../audio/audioWorker.ts', import.meta.url),
-        { type: 'module' }
-      );
-
-      console.log('Setting up audio nodes');
-      const destination = audioContextRef.current.createMediaStreamDestination();
+      // Create MediaStream destination
+      console.log('Creating MediaStream destination');
+      const destination = ctx.createMediaStreamDestination();
       mediaStreamRef.current = destination.stream;
       console.log('Media stream created:', mediaStreamRef.current.id);
+
+      // Set up audio nodes for each enabled channel
+      console.log('Setting up audio nodes for enabled channels');
+      state.channels.forEach((channel, index) => {
+        if (!channel.enabled) return;
+
+        // Create oscillator
+        const oscillator = ctx.createOscillator();
+        oscillator.type = channel.waveform;
+        oscillator.frequency.setValueAtTime(channel.frequency, ctx.currentTime);
+        
+        // Create gain node
+        const gainNode = ctx.createGain();
+        gainNode.gain.setValueAtTime(0.5, ctx.currentTime); // Prevent clipping
+        
+        // Connect nodes
+        oscillator.connect(gainNode);
+        gainNode.connect(destination);
+        
+        // Store refs for cleanup
+        oscillatorNodesRef.current.push(oscillator);
+        gainNodesRef.current.push(gainNode);
+        
+        // Start oscillator
+        oscillator.start();
+      });
 
       console.log('Initializing MediaRecorder');
       mediaRecorderRef.current = new RecordRTC(mediaStreamRef.current, {
@@ -101,69 +152,54 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         width: 1280,
         height: 720,
         videoBitsPerSecond: 8000000,
-        audioBitsPerSecond: 320000
+        audioBitsPerSecond: 320000,
+        timeSlice: 1000, // Get data every second
+        ondataavailable: (blob: Blob) => {
+          console.log('Data available:', blob.size, 'bytes');
+        }
       });
 
       console.log('Starting recording');
       mediaRecorderRef.current.startRecording();
 
-      workerRef.current.onmessage = async (e) => {
-        console.log('Worker message received:', e.data.type);
-        const { type, audioData, progress: currentProgress } = e.data;
+      // Set recording duration
+      setTimeout(() => {
+        console.log('Stopping recording');
+        mediaRecorderRef.current?.stopRecording(() => {
+          const blob = mediaRecorderRef.current?.getBlob();
+          if (blob) {
+            console.log(`MP4 blob created - ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `swizard-${Date.now()}.mp4`;
+            document.body.appendChild(a);
+            console.log('Triggering download');
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            console.log('Download complete');
+          } else {
+            console.error('Failed to create MP4 blob');
+            toast.error('Export failed - no data generated');
+          }
+          cleanupExport();
+          setExporting(false);
+          setProgress(0);
+        });
+      }, selectedDuration * 1000);
 
-        switch (type) {
-          case 'chunk':
-            if (audioData) {
-              console.log('Processing audio chunk');
-              const audioBuffer = await audioContextRef.current!.decodeAudioData(audioData);
-              const source = audioContextRef.current!.createBufferSource();
-              source.buffer = audioBuffer;
-              source.connect(destination);
-              source.start();
-              console.log('Audio chunk connected to recorder');
-            }
-            setProgress(currentProgress);
-            break;
-
-          case 'complete':
-            console.log('Audio generation complete, stopping recording');
-            mediaRecorderRef.current?.stopRecording(() => {
-              const blob = mediaRecorderRef.current?.getBlob();
-              if (blob) {
-                console.log(`MP4 blob created - ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `swizard-${Date.now()}.mp4`;
-                document.body.appendChild(a);
-                console.log('Triggering download');
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                console.log('Download complete');
-              } else {
-                console.error('Failed to create MP4 blob');
-                toast.error('Export failed - no data generated');
-              }
-              cleanupExport();
-              setExporting(false);
-              setProgress(0);
-            });
-            break;
-
-          case 'error':
-            throw new Error(e.data.error);
+      // Update progress
+      const progressInterval = setInterval(() => {
+        if (exporting) {
+          setProgress(prev => {
+            const newProgress = prev + (100 / selectedDuration);
+            return newProgress >= 100 ? 100 : newProgress;
+          });
+        } else {
+          clearInterval(progressInterval);
         }
-      };
-
-      console.log('Starting audio generation');
-      workerRef.current.postMessage({
-        type: 'generate',
-        data: {
-          channels: state.channels,
-          duration: testDuration // Use test duration
-        }
-      });
+      }, 1000);
 
     } catch (error: any) {
       console.error('Export error:', error);
@@ -185,7 +221,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       }
       return `Rendering... ${Math.round(progress)}%`;
     }
-    return 'Download Audio';
+    return 'Export MP4';
   };
 
   return (
