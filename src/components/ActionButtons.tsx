@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import { Crown, Sparkles, Save } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
-import { renderOffline } from '../audio/offlineExport';
+import { chunkedOfflineExport } from '../audio/chunkedOfflineExport';
 
 interface ActionButtonsProps {
   onShowPricing: () => void;
@@ -63,20 +63,12 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       setExporting(true);
       setProgress(0);
 
-      // Start progress updates
-      const progressInterval = setInterval(() => {
-        setProgress(prev => Math.min(prev + 1, 99));
-      }, selectedDuration * 10);
-
-      // Render audio offline
-      const blob = await renderOffline({
+      const blob = await chunkedOfflineExport({
         durationSeconds: selectedDuration,
         frequencies: state.channels,
-        effects: state.effects
+        effects: state.effects,
+        onProgress: setProgress
       });
-
-      clearInterval(progressInterval);
-      setProgress(100);
 
       // Download file
       const url = URL.createObjectURL(blob);
@@ -164,5 +156,3 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     </section>
   );
 };
-
-export default ActionButtons;
