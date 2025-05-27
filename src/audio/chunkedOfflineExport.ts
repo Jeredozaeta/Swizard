@@ -18,7 +18,7 @@ export async function chunkedOfflineExport({
   onProgress,
   sampleRate = 48000
 }: ChunkedExportOptions): Promise<Blob> {
-  console.log('Starting chunked export:', { durationSeconds, sampleRate });
+  console.log('export-start', durationSeconds);
 
   const CHUNK_DURATION = 120; // 2 minutes per chunk
   const numChannels = 2; // Stereo output
@@ -34,12 +34,6 @@ export async function chunkedOfflineExport({
       const chunkStart = i * CHUNK_DURATION;
       const chunkDuration = Math.min(CHUNK_DURATION, durationSeconds - chunkStart);
       const samplesInChunk = Math.ceil(chunkDuration * sampleRate);
-      
-      console.log(`Processing chunk ${i + 1}/${numChunks}:`, {
-        start: chunkStart,
-        duration: chunkDuration,
-        samples: samplesInChunk
-      });
 
       // Create offline context for this chunk
       const ctx = new OfflineAudioContext(
@@ -63,33 +57,31 @@ export async function chunkedOfflineExport({
       leftChannel.set(chunkLeft, startIndex);
       rightChannel.set(chunkRight, startIndex);
 
+      console.log('slice-done', i, chunkDuration);
+
       // Report progress
       const progress = ((i + 1) / numChunks) * 100;
       onProgress?.(progress);
-      
-      console.log(`Chunk ${i + 1} complete:`, {
-        startIndex,
-        samplesWritten: chunkLeft.length
-      });
 
       // Small delay to prevent UI freeze
       await new Promise(resolve => setTimeout(resolve, 10));
     }
 
-    console.log('All chunks processed, encoding WAV...');
-
     // Encode final WAV file
     const wavBuffer = encodeWav([leftChannel, rightChannel], sampleRate);
     
-    console.log('WAV encoding complete:', {
-      size: wavBuffer.byteLength,
-      duration: durationSeconds,
-      sampleRate
-    });
+    if (wavBuffer.byteLength === 0) {
+      throw new Error('Empty WAV buffer – graph disconnected');
+    }
 
-    return new Blob([wavBuffer], { type: 'audio/wav' });
+    console.log('wav-bytes', wavBuffer.byteLength);
+
+    const blob = new Blob([wavBuffer], { type: 'audio/wav' });
+    console.log('blob-size', blob.size);
+
+    return blob;
   } catch (error) {
-    console.error('Chunked export error:', error);
-    throw new Error(`Export failed: ${error.message}`);
+    console.error('export-error', error);
+    throw error;
   }
 }

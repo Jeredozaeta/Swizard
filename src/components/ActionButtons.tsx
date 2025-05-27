@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { Crown, Sparkles, Save } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
@@ -13,6 +13,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const { state, togglePlayback, sharePreset } = useAudio();
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
+  const downloadLinkRef = useRef<HTMLAnchorElement | null>(null);
 
   const handleShare = async () => {
     try {
@@ -70,15 +71,41 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         onProgress: setProgress
       });
 
-      // Download file
+      const filename = `swizard-export-${Date.now()}.wav`;
       const url = URL.createObjectURL(blob);
+
+      // Create and trigger download
       const a = document.createElement('a');
       a.href = url;
-      a.download = `swizard-${Date.now()}.wav`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
+      console.log('download-triggered');
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+
+      // Create fallback link if download doesn't start
+      setTimeout(() => {
+        if (!downloadLinkRef.current) {
+          const fallbackToast = toast.info(
+            <div>
+              Browser blocked automatic download – 
+              <a 
+                href={url}
+                download={filename}
+                onClick={() => {
+                  setTimeout(() => URL.revokeObjectURL(url), 1000);
+                  if (fallbackToast) toast.dismiss(fallbackToast);
+                }}
+                className="text-blue-400 hover:text-blue-300 underline ml-1"
+              >
+                click here
+              </a>
+            </div>,
+            { autoClose: false }
+          );
+        }
+      }, 1000);
 
       toast.success('Export complete!', {
         autoClose: 3000
@@ -157,4 +184,4 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   );
 };
 
-export default ActionButtons
+export default ActionButtons;
