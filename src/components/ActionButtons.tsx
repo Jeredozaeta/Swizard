@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { Crown, Sparkles, Save } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import RecordRTC from 'recordrtc';
+import { encodeWav } from '../audio/wavEncoder';
 
 interface ActionButtonsProps {
   onShowPricing: () => void;
@@ -20,6 +21,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const gainNodesRef = useRef<GainNode[]>([]);
   const masterGainRef = useRef<GainNode | null>(null);
   const destinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const audioBufferRef = useRef<Float32Array[]>([]);
+  const recordingStartTimeRef = useRef<number>(0);
 
   const handleShare = async () => {
     try {
@@ -50,7 +53,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const cleanupExport = () => {
     console.log('Cleaning up export resources');
     
-    // Stop and cleanup oscillators
     oscillatorNodesRef.current.forEach(osc => {
       try {
         osc.stop();
@@ -61,7 +63,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     });
     oscillatorNodesRef.current = [];
 
-    // Cleanup gain nodes
     gainNodesRef.current.forEach(gain => {
       try {
         gain.disconnect();
@@ -71,7 +72,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     });
     gainNodesRef.current = [];
 
-    // Cleanup master gain
     if (masterGainRef.current) {
       try {
         masterGainRef.current.disconnect();
@@ -81,7 +81,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       masterGainRef.current = null;
     }
 
-    // Cleanup destination
     if (destinationRef.current) {
       try {
         destinationRef.current.disconnect();
@@ -106,6 +105,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       audioContextRef.current = null;
     }
 
+    audioBufferRef.current = [];
     setExporting(false);
     setProgress(0);
   };
@@ -133,17 +133,41 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       audioContextRef.current = new AudioContext();
       const ctx = audioContextRef.current;
 
+      // Initialize audio buffers for WAV export
+      const numChannels = 2; // Stereo output
+      const samplesPerChannel = Math.ceil(selectedDuration * ctx.sampleRate);
+      audioBufferRef.current = Array(numChannels).fill(null).map(() => new Float32Array(samplesPerChannel));
+
       // Create master gain for overall volume control
       masterGainRef.current = ctx.createGain();
       masterGainRef.current.gain.setValueAtTime(0.8, ctx.currentTime);
 
-      // Create MediaStream destination
+      // Create MediaStream destination for both MP4 and WAV export
       console.log('Creating MediaStream destination');
       destinationRef.current = ctx.createMediaStreamDestination();
       mediaStreamRef.current = destinationRef.current.stream;
       console.log('Media stream created:', mediaStreamRef.current.id);
 
-      // Connect master gain to destination
+      // Create ScriptProcessor for capturing audio data
+      const scriptProcessor = ctx.createScriptProcessor(4096, numChannels, numChannels);
+      scriptProcessor.onaudioprocess = (e) => {
+        if (!recordingStartTimeRef.current) {
+          recordingStartTimeRef.current = ctx.currentTime;
+        }
+
+        const inputL = e.inputBuffer.getChannelData(0);
+        const inputR = e.inputBuffer.getChannelData(1);
+        const offset = Math.floor((ctx.currentTime - recordingStartTimeRef.current) * ctx.sampleRate);
+
+        if (offset + inputL.length <= samplesPerChannel) {
+          audioBufferRef.current[0].set(inputL, offset);
+          audioBufferRef.current[1].set(inputR, offset);
+        }
+      };
+
+      // Connect master gain to both destinations
+      masterGainRef.current.connect(scriptProcessor);
+      scriptProcessor.connect(ctx.destination);
       masterGainRef.current.connect(destinationRef.current);
 
       // Set up audio nodes for each enabled channel
@@ -154,24 +178,19 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       enabledChannels.forEach((channel, index) => {
         console.log(`Creating oscillator for channel ${index}:`, channel);
         
-        // Create oscillator
         const oscillator = ctx.createOscillator();
         oscillator.type = channel.waveform;
         oscillator.frequency.setValueAtTime(channel.frequency, ctx.currentTime);
         
-        // Create channel gain node
         const gainNode = ctx.createGain();
         gainNode.gain.setValueAtTime(1.0 / enabledChannels.length, ctx.currentTime);
         
-        // Connect channel nodes
         oscillator.connect(gainNode);
         gainNode.connect(masterGainRef.current!);
         
-        // Store refs for cleanup
         oscillatorNodesRef.current.push(oscillator);
         gainNodesRef.current.push(gainNode);
         
-        // Start oscillator
         oscillator.start();
         console.log(`Started oscillator ${index} at ${channel.frequency}Hz`);
       });
@@ -185,11 +204,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         width: 1280,
         height: 720,
         videoBitsPerSecond: 8000000,
-        audioBitsPerSecond: 320000,
-        timeSlice: 1000,
-        ondataavailable: (blob: Blob) => {
-          console.log('Data chunk available:', blob.size, 'bytes');
-        }
+        audioBitsPerSecond: 320000
       });
 
       console.log('Starting recording');
@@ -216,29 +231,37 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       setTimeout(() => {
         console.log('Stopping recording');
         if (mediaRecorderRef.current) {
-          mediaRecorderRef.current.stopRecording(() => {
-            const blob = mediaRecorderRef.current?.getBlob();
-            
-            if (blob && blob.size > 0) {
-              console.log(`MP4 blob created: ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `swizard-${Date.now()}.mp4`;
-              document.body.appendChild(a);
-              
-              console.log('Triggering download');
-              a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
-              
-              toast.success('Export complete!', {
-                autoClose: 3000
-              });
-            } else {
-              console.error('Invalid blob:', blob);
-              toast.error('Export failed - no audio data generated');
+          mediaRecorderRef.current.stopRecording(async () => {
+            // Export MP4
+            const mp4Blob = mediaRecorderRef.current?.getBlob();
+            if (mp4Blob && mp4Blob.size > 0) {
+              console.log(`MP4 blob created: ${(mp4Blob.size / 1024 / 1024).toFixed(2)} MB`);
+              const mp4Url = URL.createObjectURL(mp4Blob);
+              const mp4Link = document.createElement('a');
+              mp4Link.href = mp4Url;
+              mp4Link.download = `swizard-${Date.now()}.mp4`;
+              document.body.appendChild(mp4Link);
+              mp4Link.click();
+              document.body.removeChild(mp4Link);
+              URL.revokeObjectURL(mp4Url);
             }
+
+            // Export WAV
+            const wavBuffer = encodeWav(audioBufferRef.current, ctx.sampleRate);
+            const wavBlob = new Blob([wavBuffer], { type: 'audio/wav' });
+            console.log(`WAV blob created: ${(wavBlob.size / 1024 / 1024).toFixed(2)} MB`);
+            const wavUrl = URL.createObjectURL(wavBlob);
+            const wavLink = document.createElement('a');
+            wavLink.href = wavUrl;
+            wavLink.download = `swizard-${Date.now()}.wav`;
+            document.body.appendChild(wavLink);
+            wavLink.click();
+            document.body.removeChild(wavLink);
+            URL.revokeObjectURL(wavUrl);
+
+            toast.success('Export complete!', {
+              autoClose: 3000
+            });
             
             cleanupExport();
           });
@@ -263,7 +286,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       }
       return `Rendering... ${Math.round(progress)}%`;
     }
-    return 'Export MP4';
+    return 'Export Audio';
   };
 
   return (
