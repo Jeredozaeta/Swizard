@@ -2,7 +2,7 @@ import { buildToneGraph } from './buildToneGraph';
 
 interface RenderOptions {
   durationSeconds: number;
-  buildGraph: (ctx: AudioContext) => Promise<AudioNode>;
+  buildGraph: (ctx: OfflineAudioContext) => AudioNode;
 }
 
 export async function renderOffline({ durationSeconds, buildGraph }: RenderOptions): Promise<Blob> {
@@ -16,7 +16,7 @@ export async function renderOffline({ durationSeconds, buildGraph }: RenderOptio
 
   try {
     // Build the audio graph
-    const outputNode = await buildGraph(ctx);
+    const outputNode = buildGraph(ctx);
     outputNode.connect(ctx.destination);
 
     // Render the audio
