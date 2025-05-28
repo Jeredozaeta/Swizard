@@ -15,7 +15,7 @@ const api: ExportWorkerApi = {
     const SLICE_DURATION = 2400; // 40 minutes per slice
     const numSlices = Math.ceil(durationSeconds / SLICE_DURATION);
     const blobs: Blob[] = [];
-    const sampleRate = 44100;
+    const sampleRate = 48000;
 
     try {
       for (let i = 0; i < numSlices; i++) {
@@ -27,8 +27,7 @@ const api: ExportWorkerApi = {
           duration: sliceDuration
         });
 
-        // Generate raw audio data using audioWorker's method
-        const { audioData, metadata } = await generateAudioData({
+        const result = await generateAudioData({
           durationSeconds: sliceDuration,
           frequencies: frequencies.filter(f => f.enabled),
           sampleRate,
@@ -39,15 +38,30 @@ const api: ExportWorkerApi = {
           }
         });
 
-        // Convert audio data to WAV blob
+        if (!result || !result.audioData || result.audioData.length === 0) {
+          throw new Error('Generated audio data is empty or invalid');
+        }
+
+        // Convert Float32Array to Int16Array for WAV format
+        const int16Data = new Int16Array(result.audioData.length);
+        for (let j = 0; j < result.audioData.length; j++) {
+          const sample = Math.max(-1, Math.min(1, result.audioData[j]));
+          int16Data[j] = Math.round(sample * 32767);
+        }
+
+        // Create WAV blob
         const wavBlob = new Blob([
-          createWavHeader(audioData.length, sampleRate),
-          audioData
+          createWavHeader(int16Data.length, sampleRate),
+          int16Data
         ], { type: 'audio/wav' });
+
+        if (wavBlob.size === 0) {
+          throw new Error('Generated WAV blob is empty');
+        }
 
         blobs.push(wavBlob);
         
-        // Small delay between slices to prevent UI freeze
+        // Small delay between slices
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
@@ -59,7 +73,6 @@ const api: ExportWorkerApi = {
   }
 };
 
-// Helper function to create WAV header
 function createWavHeader(dataLength: number, sampleRate: number): ArrayBuffer {
   const headerLength = 44;
   const header = new ArrayBuffer(headerLength);
@@ -67,22 +80,22 @@ function createWavHeader(dataLength: number, sampleRate: number): ArrayBuffer {
 
   // RIFF chunk descriptor
   writeString(view, 0, 'RIFF');
-  view.setUint32(4, 36 + dataLength, true);
+  view.setUint32(4, 36 + dataLength * 2, true);
   writeString(view, 8, 'WAVE');
 
   // fmt sub-chunk
   writeString(view, 12, 'fmt ');
   view.setUint32(16, 16, true);
   view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
+  view.setUint16(22, 2, true); // Stereo
   view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
+  view.setUint32(28, sampleRate * 4, true);
+  view.setUint16(32, 4, true);
   view.setUint16(34, 16, true);
 
   // data sub-chunk
   writeString(view, 36, 'data');
-  view.setUint32(40, dataLength, true);
+  view.setUint32(40, dataLength * 2, true);
 
   return header;
 }

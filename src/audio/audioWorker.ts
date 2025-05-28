@@ -32,93 +32,89 @@ interface AudioChannel {
   enabled: boolean;
 }
 
-const generateAudioChunk = (
-  channels: AudioChannel[],
-  startTime: number,
-  duration: number,
-  sampleRate: number = SAMPLE_RATE
-): Float32Array => {
-  console.log(`Generating audio chunk: startTime=${startTime}, duration=${duration}`);
-  
-  const numSamples = Math.floor(duration * sampleRate);
+export interface AudioGenerationResult {
+  audioData: Float32Array;
+  metadata: {
+    sampleRate: number;
+    channels: number;
+    duration: number;
+  };
+}
+
+export async function generateAudioData({
+  durationSeconds,
+  frequencies,
+  sampleRate = SAMPLE_RATE,
+  effects = [],
+  onProgress
+}: {
+  durationSeconds: number;
+  frequencies: AudioChannel[];
+  sampleRate?: number;
+  effects?: any[];
+  onProgress?: (percent: number) => void;
+}): Promise<AudioGenerationResult> {
+  console.log('Starting audio generation:', { durationSeconds, frequencies });
+
+  if (durationSeconds > MAX_DURATION) {
+    throw new Error(`Duration cannot exceed ${MAX_DURATION} seconds (12 hours)`);
+  }
+
+  const numSamples = Math.floor(durationSeconds * sampleRate);
   const buffer = new Float32Array(numSamples * CHANNELS);
-  const enabledChannels = channels.filter(c => c.enabled);
+  const enabledChannels = frequencies.filter(c => c.enabled);
 
-  console.log(`Enabled channels: ${enabledChannels.length}, Total samples: ${numSamples}`);
-
-  for (let i = 0; i < numSamples; i++) {
-    const t = startTime + (i / sampleRate);
-    let leftSample = 0;
-    let rightSample = 0;
-
-    for (const channel of enabledChannels) {
-      const sample = waveformGenerators[channel.waveform](t, channel.frequency);
-      leftSample += sample;
-      rightSample += sample;
-    }
-
-    const normalizer = Math.max(1, enabledChannels.length);
-    buffer[i * CHANNELS] = leftSample / normalizer;
-    buffer[i * CHANNELS + 1] = rightSample / normalizer;
+  if (enabledChannels.length === 0) {
+    throw new Error('No enabled frequency channels found');
   }
 
-  console.log(`Audio chunk generated: ${buffer.length} samples`);
-  return buffer;
-};
+  console.log(`Generating ${numSamples} samples for ${enabledChannels.length} channels`);
 
-self.onmessage = async (e: MessageEvent) => {
-  const { type, data } = e.data;
+  const CHUNK_SIZE = Math.floor(sampleRate * CHUNK_DURATION);
+  const numChunks = Math.ceil(numSamples / CHUNK_SIZE);
 
-  if (type === 'generate') {
-    try {
-      const { channels, duration } = data;
-      console.log(`Starting audio generation: duration=${duration}s`);
+  for (let chunk = 0; chunk < numChunks; chunk++) {
+    const startSample = chunk * CHUNK_SIZE;
+    const endSample = Math.min(startSample + CHUNK_SIZE, numSamples);
+    
+    for (let i = startSample; i < endSample; i++) {
+      const t = i / sampleRate;
+      let leftSample = 0;
+      let rightSample = 0;
 
-      if (duration > MAX_DURATION) {
-        console.error(`Duration exceeds maximum: ${duration}s > ${MAX_DURATION}s`);
-        self.postMessage({ 
-          type: 'error', 
-          error: `Duration cannot exceed ${MAX_DURATION} seconds (12 hours)`
-        });
-        return;
+      for (const channel of enabledChannels) {
+        const sample = waveformGenerators[channel.waveform](t, channel.frequency);
+        leftSample += sample;
+        rightSample += sample;
       }
 
-      const numChunks = Math.ceil(duration / CHUNK_DURATION);
-      self.postMessage({ type: 'start', totalChunks: numChunks });
-      console.log(`Audio generation started: ${numChunks} chunks`);
+      // Normalize based on number of channels
+      const normalizer = Math.max(1, enabledChannels.length);
+      buffer[i * CHANNELS] = leftSample / normalizer;
+      buffer[i * CHANNELS + 1] = rightSample / normalizer;
+    }
 
-      for (let i = 0; i < numChunks; i++) {
-        const startTime = i * CHUNK_DURATION;
-        const chunkDuration = Math.min(CHUNK_DURATION, duration - startTime);
-        
-        console.log(`Generating chunk ${i + 1}/${numChunks}: duration=${chunkDuration}s`);
-        const audioData = generateAudioChunk(channels, startTime, chunkDuration);
-        console.log(`Chunk ${i + 1} generated: ${audioData.length} samples`);
-        
-        self.postMessage({
-          type: 'chunk',
-          audioData: audioData.buffer,
-          progress: ((i + 1) / numChunks) * 100
-        }, [audioData.buffer]);
+    // Report progress after each chunk
+    if (onProgress) {
+      const progress = ((chunk + 1) / numChunks) * 100;
+      onProgress(progress);
+    }
 
-        // Yield to main thread periodically
-        if (i % 2 === 1) {
-          await new Promise(resolve => setTimeout(resolve, 0));
-        }
-      }
-
-      console.log('Audio generation complete');
-      self.postMessage({ type: 'complete' });
-
-    } catch (error) {
-      console.error('Audio generation error:', error);
-      self.postMessage({ 
-        type: 'error', 
-        error: 'Failed to generate audio: ' + (error instanceof Error ? error.message : String(error))
-      });
+    // Yield to main thread periodically
+    if (chunk % 4 === 3) {
+      await new Promise(resolve => setTimeout(resolve, 0));
     }
   }
-};
+
+  return {
+    audioData: buffer,
+    metadata: {
+      sampleRate,
+      channels: CHANNELS,
+      duration: durationSeconds
+    }
+  };
+}
 
 // Clean up on termination
 self.addEventListener('unload', () => {
