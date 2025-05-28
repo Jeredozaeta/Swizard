@@ -52,3 +52,47 @@ function writeString(view: DataView, offset: number, str: string): void {
     view.setUint8(offset + i, str.charCodeAt(i));
   }
 }
+
+// New function to convert Float32 samples to Int16 PCM
+export function float32ToInt16(float32Array: Float32Array): Int16Array {
+  const int16Array = new Int16Array(float32Array.length);
+  for (let i = 0; i < float32Array.length; i++) {
+    const sample = Math.max(-1, Math.min(1, float32Array[i]));
+    int16Array[i] = Math.round(sample * 32767);
+  }
+  return int16Array;
+}
+
+// New function to create WAV header
+export function createWavHeader(totalSamples: number, numChannels: number, sampleRate: number): ArrayBuffer {
+  const bytesPerSample = 2; // 16-bit PCM
+  const blockAlign = numChannels * bytesPerSample;
+  const byteRate = sampleRate * blockAlign;
+  const dataSize = totalSamples * blockAlign;
+  
+  const buffer = new ArrayBuffer(44); // WAV header is always 44 bytes
+  const view = new DataView(buffer);
+  
+  let offset = 0;
+  
+  // RIFF chunk descriptor
+  writeString(view, offset, 'RIFF'); offset += 4;
+  view.setUint32(offset, 36 + dataSize, true); offset += 4;
+  writeString(view, offset, 'WAVE'); offset += 4;
+
+  // fmt sub-chunk
+  writeString(view, offset, 'fmt '); offset += 4;
+  view.setUint32(offset, 16, true); offset += 4;
+  view.setUint16(offset, 1, true); offset += 2;
+  view.setUint16(offset, numChannels, true); offset += 2;
+  view.setUint32(offset, sampleRate, true); offset += 4;
+  view.setUint32(offset, byteRate, true); offset += 4;
+  view.setUint16(offset, blockAlign, true); offset += 2;
+  view.setUint16(offset, bytesPerSample * 8, true); offset += 2;
+
+  // data sub-chunk header
+  writeString(view, offset, 'data'); offset += 4;
+  view.setUint32(offset, dataSize, true); offset += 4;
+
+  return buffer;
+}
