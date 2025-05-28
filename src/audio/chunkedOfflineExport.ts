@@ -21,7 +21,7 @@ export async function chunkedOfflineExport({
 }: ChunkedExportOptions): Promise<Blob> {
   console.log('[Swizard Export] Starting export:', { durationSeconds, sampleRate });
 
-  const CHUNK_DURATION = 30; // 30 second chunks for better memory management
+  const CHUNK_DURATION = 600; // 10 minute chunks
   const numChannels = 2;
   const numChunks = Math.ceil(durationSeconds / CHUNK_DURATION);
   
