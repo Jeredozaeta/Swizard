@@ -58,7 +58,7 @@ export async function slicedExport({
       }
     }
 
-    // Generate audio in worker - don't pass onProgress callback
+    // Generate audio in worker
     const blobs = await api.generateAudio({
       durationSeconds,
       frequencies,
