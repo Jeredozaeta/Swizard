@@ -13,8 +13,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const { state, togglePlayback, sharePreset } = useAudio();
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
-  const exportTimeoutRef = useRef<number | null>(null);
-  const finalizingTimeoutRef = useRef<number | null>(null);
+  const exportTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const finalizingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const downloadURLRef = useRef<string | null>(null);
   const [downloadTriggered, setDownloadTriggered] = useState(false);
 
@@ -67,10 +67,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     a.click();
     document.body.removeChild(a);
     
-    // Keep URL for backup download
     downloadURLRef.current = url;
 
-    // Show backup download toast
     toast.info(
       <div>
         If download doesn't start, {' '}
@@ -109,14 +107,22 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       setProgress(0);
       setDownloadTriggered(false);
 
-      // Set timeout for the entire export process
-      exportTimeoutRef.current = window.setTimeout(() => {
-        toast.error('Export timed out. Please try again with a shorter duration.', {
+      // Log export details
+      console.log('[Swizard Export] Starting export:', {
+        duration: selectedDuration,
+        activeEffects: Object.values(state.effects).filter(e => e.enabled).length,
+        activeChannels: state.channels.filter(c => c.enabled).length
+      });
+
+      // Set timeout for the entire export process (5 minutes)
+      exportTimeoutRef.current = setTimeout(() => {
+        console.error('[Swizard Export] Export timed out after 5 minutes');
+        toast.error('Export timed out. Try using a shorter duration or fewer effects.', {
           autoClose: 5000
         });
         setExporting(false);
         setProgress(0);
-      }, 120000); // 2 minutes total timeout
+      }, 300000);
 
       const blobs = await slicedExport({
         durationSeconds: selectedDuration,
@@ -127,12 +133,12 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
           
           // Set timeout for finalization phase
           if (percent === 100 && !finalizingTimeoutRef.current) {
-            finalizingTimeoutRef.current = window.setTimeout(() => {
+            finalizingTimeoutRef.current = setTimeout(() => {
               console.log('[Swizard Export] Finalization taking too long, triggering fallback...');
               if (downloadURLRef.current && !downloadTriggered) {
                 triggerDownload(downloadURLRef.current, `swizard-fallback-${Date.now()}.wav`);
               }
-            }, 15000); // 15 seconds timeout for finalization
+            }, 15000);
           }
         }
       });
@@ -141,7 +147,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       if (exportTimeoutRef.current) clearTimeout(exportTimeoutRef.current);
       if (finalizingTimeoutRef.current) clearTimeout(finalizingTimeoutRef.current);
 
-      // Handle single vs multiple files
       if (blobs.length === 1) {
         const url = URL.createObjectURL(blobs[0]);
         const filename = `swizard-${Date.now()}.wav`;
@@ -150,7 +155,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         console.log('[Swizard Export] Final file size:', (blobs[0].size / 1024 / 1024).toFixed(2), 'MB');
         toast.success('Audio saved successfully!');
       } else {
-        // Download multiple files
         blobs.forEach((blob, index) => {
           const url = URL.createObjectURL(blob);
           const filename = `swizard-${Date.now()}-part${index + 1}.wav`;
@@ -162,7 +166,12 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         toast.success(`${blobs.length} audio files saved successfully!`);
       }
     } catch (error: any) {
-      console.error('[Swizard Export] Export error:', error);
+      console.error('[Swizard Export] Export error:', {
+        message: error.message,
+        duration: selectedDuration,
+        activeEffects: Object.values(state.effects).filter(e => e.enabled).length
+      });
+      
       toast.error('Export failed - please try again', {
         autoClose: 5000,
         pauseOnHover: true,

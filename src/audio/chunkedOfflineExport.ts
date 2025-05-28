@@ -21,7 +21,7 @@ export async function chunkedOfflineExport({
 }: ChunkedExportOptions): Promise<Blob> {
   console.log('[Swizard Export] Starting export:', { durationSeconds, sampleRate });
 
-  const CHUNK_DURATION = 60; // 1 minute chunks for better memory management
+  const CHUNK_DURATION = 30; // 30 second chunks for better memory management
   const numChannels = 2;
   const numChunks = Math.ceil(durationSeconds / CHUNK_DURATION);
   
@@ -34,14 +34,6 @@ export async function chunkedOfflineExport({
     console.log('[Swizard Export] Still processing...');
   }, 5000);
 
-  // Timeout for the entire export process
-  const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => {
-      clearInterval(progressInterval);
-      reject(new Error('Export timed out after 60 seconds'));
-    }, 60000);
-  });
-  
   try {
     // Process audio in chunks
     for (let i = 0; i < numChunks; i++) {
@@ -69,10 +61,17 @@ export async function chunkedOfflineExport({
       console.log(`[Swizard Export] Starting render for chunk ${i + 1}`);
       const renderStartTime = performance.now();
       
+      // Set timeout for chunk rendering
+      const chunkTimeout = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(`Chunk ${i + 1} render timed out after 60 seconds`));
+        }, 60000);
+      });
+
       // Race between rendering and timeout
       const renderedBuffer = await Promise.race([
         ctx.startRendering(),
-        timeoutPromise
+        chunkTimeout
       ]);
 
       const renderTime = performance.now() - renderStartTime;
@@ -120,9 +119,6 @@ export async function chunkedOfflineExport({
 
     // Create backup download link
     const url = URL.createObjectURL(blob);
-    const backupLink = document.createElement('a');
-    backupLink.href = url;
-    backupLink.download = `swizard-${Date.now()}.wav`;
     
     // Dispatch event for backup download
     const backupEvent = new CustomEvent('swizardExportComplete', { 
