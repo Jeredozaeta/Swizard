@@ -56,10 +56,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     }
   };
 
-  const triggerDownload = (url: string, filename: string) => {
+  const triggerDownload = (blob: Blob, filename: string) => {
     if (downloadTriggered) return;
     setDownloadTriggered(true);
 
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
@@ -67,13 +68,16 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     a.click();
     document.body.removeChild(a);
     
-    downloadURLRef.current = url;
+    // Clean up after a delay
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 60000);
 
     toast.info(
       <div>
         If download doesn't start, {' '}
         <button
-          onClick={() => triggerDownload(url, filename)}
+          onClick={() => triggerDownload(blob, filename)}
           className="underline text-purple-400 hover:text-purple-300"
         >
           click here
@@ -107,38 +111,33 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       setProgress(0);
       setDownloadTriggered(false);
 
-      // Log export details
       console.log('[Swizard Export] Starting export:', {
         duration: selectedDuration,
         activeEffects: Object.values(state.effects).filter(e => e.enabled).length,
         activeChannels: state.channels.filter(c => c.enabled).length
       });
 
-      // Set timeout for the entire export process (5 minutes)
+      // Set timeout for the entire export process (30 minutes)
       exportTimeoutRef.current = setTimeout(() => {
-        console.error('[Swizard Export] Export timed out after 5 minutes');
-        toast.error('Export timed out. Try using a shorter duration or fewer effects.', {
+        console.error('[Swizard Export] Export timed out after 30 minutes');
+        toast.error('Export timed out. Please try using a shorter duration.', {
           autoClose: 5000
         });
         setExporting(false);
         setProgress(0);
-      }, 300000);
+      }, 1800000);
 
-      const blobs = await slicedExport({
+      const blob = await slicedExport({
         durationSeconds: selectedDuration,
         frequencies: state.channels,
         effects: state.effects,
-        onProgress: (percent) => {
-          setProgress(percent);
-          
-          // Set timeout for finalization phase
-          if (percent === 100 && !finalizingTimeoutRef.current) {
-            finalizingTimeoutRef.current = setTimeout(() => {
-              console.log('[Swizard Export] Finalization taking too long, triggering fallback...');
-              if (downloadURLRef.current && !downloadTriggered) {
-                triggerDownload(downloadURLRef.current, `swizard-fallback-${Date.now()}.wav`);
-              }
-            }, 15000);
+        onProgress: setProgress,
+        onSliceComplete: (current, total) => {
+          if (total > 1) {
+            toast.info(`Processing part ${current} of ${total}...`, {
+              autoClose: 2000,
+              pauseOnHover: true
+            });
           }
         }
       });
@@ -147,24 +146,16 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       if (exportTimeoutRef.current) clearTimeout(exportTimeoutRef.current);
       if (finalizingTimeoutRef.current) clearTimeout(finalizingTimeoutRef.current);
 
-      if (blobs.length === 1) {
-        const url = URL.createObjectURL(blobs[0]);
-        const filename = `swizard-${Date.now()}.wav`;
-        triggerDownload(url, filename);
+      const isZip = blob.type === 'application/zip';
+      const filename = isZip ? 
+        `swizard-export-${Date.now()}.zip` : 
+        `swizard-${Date.now()}.wav`;
 
-        console.log('[Swizard Export] Final file size:', (blobs[0].size / 1024 / 1024).toFixed(2), 'MB');
-        toast.success('Audio saved successfully!');
-      } else {
-        blobs.forEach((blob, index) => {
-          const url = URL.createObjectURL(blob);
-          const filename = `swizard-${Date.now()}-part${index + 1}.wav`;
-          triggerDownload(url, filename);
-          
-          console.log('[Swizard Export] Part', index + 1, 'size:', (blob.size / 1024 / 1024).toFixed(2), 'MB');
-        });
+      triggerDownload(blob, filename);
 
-        toast.success(`${blobs.length} audio files saved successfully!`);
-      }
+      console.log('[Swizard Export] Final file size:', (blob.size / 1024 / 1024).toFixed(2), 'MB');
+      toast.success(isZip ? 'Audio files saved as ZIP!' : 'Audio saved successfully!');
+
     } catch (error: any) {
       console.error('[Swizard Export] Export error:', {
         message: error.message,
