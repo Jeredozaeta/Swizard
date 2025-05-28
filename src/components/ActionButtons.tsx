@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import { Crown, Sparkles, Save } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
-import { chunkedOfflineExport } from '../audio/chunkedOfflineExport';
+import { slicedExport } from '../audio/slicedExport';
 
 interface ActionButtonsProps {
   onShowPricing: () => void;
@@ -63,28 +63,48 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       setExporting(true);
       setProgress(0);
 
-      const blob = await chunkedOfflineExport({
+      const blobs = await slicedExport({
         durationSeconds: selectedDuration,
         frequencies: state.channels,
         effects: state.effects,
-        onProgress: (percent) => setProgress(percent)
+        onProgress: (percent) => setProgress(percent),
+        onSliceComplete: (current, total) => {
+          if (total > 1) {
+            toast.info(`Part ${current} of ${total} complete`, {
+              autoClose: 2000,
+              pauseOnHover: true
+            });
+          }
+        }
       });
 
-      // Create download link
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `swizard-${Date.now()}.wav`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // Handle single vs multiple files
+      if (blobs.length === 1) {
+        const url = URL.createObjectURL(blobs[0]);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `swizard-${Date.now()}.wav`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
 
-      toast.success('Audio saved successfully!', {
-        autoClose: 5000,
-        pauseOnHover: true,
-        closeButton: true
-      });
+        toast.success('Audio saved successfully!');
+      } else {
+        // Download multiple files
+        blobs.forEach((blob, index) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `swizard-${Date.now()}-part${index + 1}.wav`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        });
+
+        toast.success(`${blobs.length} audio files saved successfully!`);
+      }
     } catch (error: any) {
       console.error('Export error:', error);
       toast.error('Export failed - please try again', {
@@ -96,6 +116,16 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       setExporting(false);
       setProgress(0);
     }
+  };
+
+  const getExportButtonText = () => {
+    if (exporting) {
+      if (progress === 100) {
+        return 'Finalizing...';
+      }
+      return `Saving... ${Math.round(progress)}%`;
+    }
+    return 'Save';
   };
 
   return (
@@ -114,7 +144,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
           className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 shadow-lg hover:shadow-xl transition-all duration-300"
         >
           <Save className="h-4 w-4" />
-          {exporting ? `Saving... ${Math.round(progress)}%` : 'Save'}
+          {getExportButtonText()}
         </button>
 
         <button
