@@ -96,6 +96,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       }, 45000000); // 12.5 hours in milliseconds
 
       if (selectedDuration > 3600) { // > 60 minutes
+        setProgress(10);
         // Use server-side export for long durations
         const formData = new FormData();
         formData.append('totalDuration', selectedDuration.toString());
@@ -111,7 +112,13 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
           throw new Error('Server export failed');
         }
 
+        setProgress(80);
         const { downloadUrl } = await response.json();
+        setProgress(90);
+
+        if (!downloadUrl) {
+          throw new Error('No download URL received from server');
+        }
 
         // Create download link
         const a = document.createElement('a');
@@ -120,6 +127,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+        setProgress(100);
       } else {
         // Use client-side export for shorter durations
         const result = await slicedExport({
