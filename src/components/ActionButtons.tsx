@@ -262,7 +262,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       }
       return `Saving... ${Math.round(progress)}%`;
     }
-    return serverExport ? 'Save to Server' : 'Save';
+    return 'Download Now';
   };
 
   return (
