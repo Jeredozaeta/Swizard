@@ -80,7 +80,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         );
       } else {
         toast.info(
-          'Your full audio will download as a single file. Please keep this tab open until the download completes.',
+          'Your audio will download as a single file. Please keep this tab open until the download completes.',
           { autoClose: 8000 }
         );
       }
@@ -95,36 +95,64 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         setProgress(0);
       }, 45000000); // 12.5 hours in milliseconds
 
-      const result = await slicedExport({
-        durationSeconds: selectedDuration,
-        frequencies: state.channels,
-        effects: state.effects,
-        onProgress: (value) => {
-          setProgress(value);
+      if (selectedDuration > 3600) { // > 60 minutes
+        // Use server-side export for long durations
+        const formData = new FormData();
+        formData.append('totalDuration', selectedDuration.toString());
+        formData.append('channels', JSON.stringify(state.channels));
+        formData.append('effects', JSON.stringify(state.effects));
+
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-audio`, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error('Server export failed');
         }
-      });
 
-      // Clear timeout since export completed
-      if (exportTimeoutRef.current) {
-        clearTimeout(exportTimeoutRef.current);
+        const { downloadUrl } = await response.json();
+
+        // Create download link
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `swizard-${Date.now()}.wav`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        // Use client-side export for shorter durations
+        const result = await slicedExport({
+          durationSeconds: selectedDuration,
+          frequencies: state.channels,
+          effects: state.effects,
+          onProgress: (value) => {
+            setProgress(value);
+          }
+        });
+
+        // Clear timeout since export completed
+        if (exportTimeoutRef.current) {
+          clearTimeout(exportTimeoutRef.current);
+        }
+
+        const filename = `swizard-${Date.now()}.wav`;
+        const url = URL.createObjectURL(result);
+        downloadUrlsRef.current.push(url);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        // Clean up URL after a delay
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+          downloadUrlsRef.current = downloadUrlsRef.current.filter(u => u !== url);
+        }, 60000);
       }
-
-      const filename = `swizard-${Date.now()}.wav`;
-      const url = URL.createObjectURL(result);
-      downloadUrlsRef.current.push(url);
-
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-
-      // Clean up URL after a delay
-      setTimeout(() => {
-        URL.revokeObjectURL(url);
-        downloadUrlsRef.current = downloadUrlsRef.current.filter(u => u !== url);
-      }, 60000);
 
       toast.success('Audio saved successfully!');
     } catch (error: any) {

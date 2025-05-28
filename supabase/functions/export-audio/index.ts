@@ -122,9 +122,55 @@ async function generateChunkData(
   effects: any[],
   sampleRate: number
 ): Promise<ArrayBuffer> {
-  // Implementation of audio generation logic
-  // This would be similar to the client-side generation but optimized for server
-  // Returns audio data as ArrayBuffer
-  // ...
-  return new ArrayBuffer(0); // Placeholder
+  const numSamples = Math.ceil(duration * sampleRate);
+  const numChannels = 2;
+  const buffer = new Int16Array(numSamples * numChannels);
+  
+  // Generate audio data for each enabled channel
+  const enabledChannels = channels.filter(c => c.enabled);
+  const normalizedGain = 1.0 / Math.max(1, enabledChannels.length);
+
+  for (let i = 0; i < numSamples; i++) {
+    const t = i / sampleRate;
+    let leftSample = 0;
+    let rightSample = 0;
+
+    // Generate samples for each enabled channel
+    for (const channel of enabledChannels) {
+      const sample = generateWaveform(t, channel.frequency, channel.waveform);
+      leftSample += sample;
+      rightSample += sample;
+    }
+
+    // Normalize and convert to Int16
+    leftSample = Math.max(-1, Math.min(1, leftSample * normalizedGain));
+    rightSample = Math.max(-1, Math.min(1, rightSample * normalizedGain));
+
+    buffer[i * 2] = Math.round(leftSample * 32767);
+    buffer[i * 2 + 1] = Math.round(rightSample * 32767);
+
+    // Yield to prevent blocking
+    if (i % 48000 === 0) {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+  }
+
+  return buffer.buffer;
+}
+
+function generateWaveform(t: number, frequency: number, waveform: string): number {
+  const phase = 2 * Math.PI * frequency * t;
+  
+  switch (waveform) {
+    case 'sine':
+      return Math.sin(phase);
+    case 'square':
+      return Math.sign(Math.sin(phase));
+    case 'sawtooth':
+      return 2 * ((frequency * t) % 1) - 1;
+    case 'triangle':
+      return 2 * Math.abs(2 * ((frequency * t) % 1) - 1) - 1;
+    default:
+      return 0;
+  }
 }
