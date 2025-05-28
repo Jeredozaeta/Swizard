@@ -38,18 +38,27 @@ export async function slicedExport({
 
   try {
     // Generate audio in worker
-    const audioBlob = await api.generateAudio({
+    const audioBlobs = await api.generateAudio({
       durationSeconds,
       frequencies,
       effects
     });
 
-    if (!audioBlob || audioBlob.size === 0) {
+    if (!audioBlobs || (Array.isArray(audioBlobs) && audioBlobs.length === 0)) {
       throw new Error('Generated audio is empty');
     }
 
+    // Combine multiple blobs into a single blob if needed
+    const finalBlob = Array.isArray(audioBlobs) 
+      ? new Blob(audioBlobs, { type: 'audio/wav' })
+      : audioBlobs;
+
+    if (finalBlob.size === 0) {
+      throw new Error('Generated audio blob is empty');
+    }
+
     onProgress?.(100);
-    return audioBlob;
+    return finalBlob;
   } catch (error) {
     console.error('[Swizard Export] Export error:', {
       message: error.message,
