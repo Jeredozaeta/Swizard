@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { Crown, Sparkles, Save } from 'lucide-react';
+import { Crown, Sparkles, Save, Cloud } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import { slicedExport } from '../audio/slicedExport';
 
@@ -16,6 +16,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const exportTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [downloadTriggered, setDownloadTriggered] = useState(false);
   const downloadUrlsRef = useRef<string[]>([]);
+  const [serverExport, setServerExport] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -65,6 +66,84 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         pauseOnHover: true,
         closeButton: true
       });
+    }
+  };
+
+  const handleServerExport = async () => {
+    if (selectedDuration < 30) {
+      toast.error('Please select a duration of at least 30 seconds');
+      return;
+    }
+
+    setExporting(true);
+    setProgress(0);
+    toast.info('Starting server-side export. This may take longer to prepare — file will be ready to download shortly.', {
+      autoClose: 5000
+    });
+
+    try {
+      // Create a simple progress callback that only passes the number
+      const progressCallback = (value: number) => {
+        setProgress(value);
+      };
+
+      const chunks: Blob[] = [];
+      let currentChunk = 0;
+      const totalChunks = Math.ceil(selectedDuration / 600); // 10-minute chunks
+
+      for (let i = 0; i < totalChunks; i++) {
+        const startTime = i * 600;
+        const duration = Math.min(600, selectedDuration - startTime);
+
+        const result = await slicedExport({
+          durationSeconds: duration,
+          frequencies: state.channels,
+          effects: state.effects,
+          onProgress: (percent) => {
+            const overallProgress = ((currentChunk * 100) + percent) / totalChunks;
+            progressCallback(Math.min(99, overallProgress));
+          }
+        });
+
+        if (Array.isArray(result)) {
+          chunks.push(...result);
+        } else {
+          chunks.push(result);
+        }
+        
+        currentChunk++;
+      }
+
+      // Upload chunks to server
+      const formData = new FormData();
+      chunks.forEach((chunk, index) => {
+        formData.append(`chunk${index}`, chunk);
+      });
+      formData.append('totalDuration', selectedDuration.toString());
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stitch-audio`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to process audio on server');
+      }
+
+      const { downloadUrl } = await response.json();
+      
+      // Trigger download of the complete file
+      window.location.href = downloadUrl;
+      
+      toast.success('Export complete! Your file will download automatically.');
+    } catch (error: any) {
+      console.error('Server export error:', error);
+      toast.error('Export failed - please try again', {
+        autoClose: 5000
+      });
+    } finally {
+      setExporting(false);
+      setProgress(0);
     }
   };
 
@@ -183,7 +262,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       }
       return `Saving... ${Math.round(progress)}%`;
     }
-    return 'Save';
+    return serverExport ? 'Save to Server' : 'Save';
   };
 
   return (
@@ -197,12 +276,25 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         </button>
         
         <button
-          onClick={handleExport}
+          onClick={serverExport ? handleServerExport : handleExport}
           disabled={exporting}
           className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 shadow-lg hover:shadow-xl transition-all duration-300"
         >
-          <Save className="h-4 w-4" />
+          {serverExport ? <Cloud className="h-4 w-4" /> : <Save className="h-4 w-4" />}
           {getExportButtonText()}
+        </button>
+
+        <button
+          onClick={() => setServerExport(!serverExport)}
+          className={`btn btn-sm whitespace-nowrap flex-shrink-0 ${
+            serverExport 
+              ? 'bg-violet-600 text-white'
+              : 'bg-violet-600/20 text-violet-300'
+          }`}
+          title={serverExport ? 'Switch to local export' : 'Switch to server export'}
+        >
+          <Cloud className="h-4 w-4" />
+          Server Mode: {serverExport ? 'On' : 'Off'}
         </button>
 
         <button
