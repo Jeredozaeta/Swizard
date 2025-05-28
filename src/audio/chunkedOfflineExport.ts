@@ -19,21 +19,28 @@ export async function chunkedOfflineExport({
   onProgress,
   sampleRate = 48000
 }: ChunkedExportOptions): Promise<Blob> {
-  console.log('⏱ Starting export:', { durationSeconds, sampleRate });
+  console.log('[Swizard Export] Starting export:', { durationSeconds, sampleRate });
 
-  const CHUNK_DURATION = 120; // 2 minutes per chunk
-  const numChannels = 2; // Stereo output
+  const CHUNK_DURATION = 60; // 1 minute chunks for better memory management
+  const numChannels = 2;
   const numChunks = Math.ceil(durationSeconds / CHUNK_DURATION);
   
-  // Pre-allocate buffers for the entire duration
+  // Pre-allocate buffers
   const leftChannel = new Float32Array(Math.ceil(durationSeconds * sampleRate));
   const rightChannel = new Float32Array(Math.ceil(durationSeconds * sampleRate));
   
-  // Set timeout for long-running exports
-  const timeoutId = setTimeout(() => {
-    console.error('⛔️ Export timeout — check buffer or promise');
-    throw new Error('Export timed out after 30 seconds');
-  }, 30000);
+  // Progress update interval
+  const progressInterval = setInterval(() => {
+    console.log('[Swizard Export] Still processing...');
+  }, 5000);
+
+  // Timeout for the entire export process
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => {
+      clearInterval(progressInterval);
+      reject(new Error('Export timed out after 60 seconds'));
+    }, 60000);
+  });
   
   try {
     // Process audio in chunks
@@ -42,7 +49,7 @@ export async function chunkedOfflineExport({
       const chunkDuration = Math.min(CHUNK_DURATION, durationSeconds - chunkStart);
       const samplesInChunk = Math.ceil(chunkDuration * sampleRate);
 
-      console.log(`🎵 Processing chunk ${i + 1}/${numChunks}:`, {
+      console.log(`[Swizard Export] Processing chunk ${i + 1}/${numChunks}:`, {
         start: chunkStart,
         duration: chunkDuration,
         samples: samplesInChunk
@@ -59,9 +66,17 @@ export async function chunkedOfflineExport({
       const outputNode = buildToneGraph(ctx, frequencies, effects);
       outputNode.connect(ctx.destination);
 
-      console.log('⏱ Starting render for chunk', i + 1);
-      const renderedBuffer = await ctx.startRendering();
-      console.log('✅ Render complete for chunk', i + 1);
+      console.log(`[Swizard Export] Starting render for chunk ${i + 1}`);
+      const renderStartTime = performance.now();
+      
+      // Race between rendering and timeout
+      const renderedBuffer = await Promise.race([
+        ctx.startRendering(),
+        timeoutPromise
+      ]);
+
+      const renderTime = performance.now() - renderStartTime;
+      console.log(`[Swizard Export] Chunk ${i + 1} rendered in ${renderTime.toFixed(2)}ms`);
       
       // Copy chunk data to main buffers
       const startIndex = Math.floor(chunkStart * sampleRate);
@@ -71,31 +86,31 @@ export async function chunkedOfflineExport({
       leftChannel.set(chunkLeft, startIndex);
       rightChannel.set(chunkRight, startIndex);
 
-      console.log(`🧠 Frames processed: ${startIndex + chunkLeft.length}`);
+      console.log(`[Swizard Export] Frames processed: ${startIndex + chunkLeft.length}`);
 
       // Report progress
       const progress = ((i + 1) / numChunks) * 100;
       onProgress?.(progress);
+      console.log(`[Swizard Export] Progress: ${progress.toFixed(1)}%`);
 
-      // Small delay to prevent UI freeze
-      await new Promise(resolve => setTimeout(resolve, 10));
+      // Small delay between chunks to prevent UI freeze
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    // Clear timeout since processing completed
-    clearTimeout(timeoutId);
+    clearInterval(progressInterval);
 
-    console.log('🎛 Encoding WAV file');
+    console.log('[Swizard Export] Encoding WAV file');
     const wavBuffer = encodeWav([leftChannel, rightChannel], sampleRate);
     
-    console.log('WAV buffer size:', wavBuffer.byteLength, 'bytes');
+    console.log('[Swizard Export] WAV buffer size:', wavBuffer.byteLength, 'bytes');
 
     if (wavBuffer.byteLength === 0) {
       throw new Error('Empty WAV buffer generated');
     }
 
     const blob = new Blob([wavBuffer], { type: 'audio/wav' });
-    console.log('Final blob:', {
-      size: blob.size,
+    console.log('[Swizard Export] Final blob:', {
+      size: `${(blob.size / 1024 / 1024).toFixed(2)} MB`,
       type: blob.type
     });
 
@@ -105,15 +120,20 @@ export async function chunkedOfflineExport({
 
     // Create backup download link
     const url = URL.createObjectURL(blob);
-    toast.info(
-      `If the download doesn't start automatically, click here: ${url}`,
-      { autoClose: 10000 }
-    );
+    const backupLink = document.createElement('a');
+    backupLink.href = url;
+    backupLink.download = `swizard-${Date.now()}.wav`;
+    
+    // Dispatch event for backup download
+    const backupEvent = new CustomEvent('swizardExportComplete', { 
+      detail: { url, size: blob.size } 
+    });
+    document.dispatchEvent(backupEvent);
 
     return blob;
   } catch (error) {
-    console.error('Export error:', error);
-    clearTimeout(timeoutId);
+    console.error('[Swizard Export] Export error:', error);
+    clearInterval(progressInterval);
     throw error;
   }
 }
