@@ -7,7 +7,7 @@ interface SlicedExportOptions {
   frequencies: FrequencyChannel[];
   effects: Record<string, AudioEffect>;
   onProgress?: (percent: number) => void;
-  onSliceComplete?: (sliceIndex: number, totalSlices: number) => void;
+  onSliceComplete?: (sliceIndex: number, totalSlices: number, blob: Blob) => void;
 }
 
 export async function slicedExport({
@@ -16,7 +16,7 @@ export async function slicedExport({
   effects,
   onProgress,
   onSliceComplete
-}: SlicedExportOptions): Promise<Blob> {
+}: SlicedExportOptions): Promise<Blob | Blob[]> {
   console.log('[Swizard Export] Starting sliced export:', { 
     durationSeconds,
     numFrequencies: frequencies.filter(f => f.enabled).length,
@@ -44,12 +44,12 @@ export async function slicedExport({
         effects,
         onProgress: (sliceProgress) => {
           const overallProgress = ((i * 100) + sliceProgress) / numSlices;
-          onProgress?.(Math.min(99, overallProgress)); // Keep at 99% until ZIP is complete
+          onProgress?.(Math.min(99, overallProgress));
         }
       });
 
       blobs.push(blob);
-      onSliceComplete?.(i + 1, numSlices);
+      onSliceComplete?.(i + 1, numSlices, blob);
       
       console.log(`[Swizard Export] Slice ${i + 1} complete:`, {
         size: (blob.size / 1024 / 1024).toFixed(2) + ' MB',
@@ -60,40 +60,38 @@ export async function slicedExport({
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    // If we have multiple slices, create a ZIP file
-    if (blobs.length > 1) {
-      console.log('[Swizard Export] Creating ZIP archive:', {
-        numFiles: blobs.length,
-        totalSize: (blobs.reduce((acc, blob) => acc + blob.size, 0) / 1024 / 1024).toFixed(2) + ' MB'
-      });
+    // If only one slice, return it directly
+    if (blobs.length === 1) {
+      onProgress?.(100);
+      return blobs[0];
+    }
 
+    // For multiple slices, try ZIP first
+    try {
+      console.log('[Swizard Export] Attempting ZIP creation...');
       const zip = new JSZip();
       
       blobs.forEach((blob, index) => {
         const fileName = `swizard-part${(index + 1).toString().padStart(2, '0')}.wav`;
         zip.file(fileName, blob);
-        console.log(`[Swizard Export] Added to ZIP: ${fileName}`);
       });
 
-      console.log('[Swizard Export] Generating final ZIP file...');
       const zipBlob = await zip.generateAsync({
         type: 'blob',
-        compression: 'STORE', // No compression for audio files
-        comment: 'Created with Swizard - https://realsoundwizard.com'
+        compression: 'STORE'
       });
 
-      console.log('[Swizard Export] ZIP creation complete:', {
-        size: (zipBlob.size / 1024 / 1024).toFixed(2) + ' MB',
-        compressionRatio: (zipBlob.size / blobs.reduce((acc, blob) => acc + blob.size, 0)).toFixed(2)
-      });
-
-      onProgress?.(100); // Finally update to 100%
-      return zipBlob;
+      if (zipBlob.size > 0) {
+        onProgress?.(100);
+        return zipBlob;
+      }
+    } catch (zipError) {
+      console.warn('[Swizard Export] ZIP creation failed, falling back to individual files:', zipError);
     }
 
-    // Single file, return as is
+    // If ZIP fails or is too large, return array of blobs
     onProgress?.(100);
-    return blobs[0];
+    return blobs;
   } catch (error) {
     console.error('[Swizard Export] Export error:', {
       message: error.message,

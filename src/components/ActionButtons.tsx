@@ -15,12 +15,19 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const [progress, setProgress] = useState(0);
   const exportTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [downloadTriggered, setDownloadTriggered] = useState(false);
+  const downloadUrlsRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    return () => {
+      // Cleanup URLs on unmount
+      downloadUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, []);
 
   const triggerDownload = (blob: Blob, filename: string) => {
-    if (downloadTriggered) return;
-    setDownloadTriggered(true);
-
     const url = URL.createObjectURL(blob);
+    downloadUrlsRef.current.push(url);
+
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
@@ -31,20 +38,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     // Clean up URL after a delay
     setTimeout(() => {
       URL.revokeObjectURL(url);
+      downloadUrlsRef.current = downloadUrlsRef.current.filter(u => u !== url);
     }, 60000);
-
-    toast.info(
-      <div>
-        If download doesn't start, {' '}
-        <button
-          onClick={() => triggerDownload(blob, filename)}
-          className="underline text-purple-400 hover:text-purple-300"
-        >
-          click here
-        </button>
-      </div>,
-      { autoClose: 10000 }
-    );
   };
 
   const handleShare = async () => {
@@ -113,16 +108,18 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         setProgress(0);
       }, 1800000);
 
-      const blob = await slicedExport({
+      const result = await slicedExport({
         durationSeconds: selectedDuration,
         frequencies: state.channels,
         effects: state.effects,
         onProgress: setProgress,
-        onSliceComplete: (current, total) => {
+        onSliceComplete: (current, total, blob) => {
+          // If we have multiple parts, trigger download for each part immediately
           if (total > 1) {
-            toast.info(`Processing part ${current} of ${total}...`, {
-              autoClose: 2000,
-              pauseOnHover: true
+            const fileName = `swizard-part${current.toString().padStart(2, '0')}.wav`;
+            triggerDownload(blob, fileName);
+            toast.info(`Part ${current} of ${total} ready for download`, {
+              autoClose: 2000
             });
           }
         }
@@ -133,15 +130,25 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         clearTimeout(exportTimeoutRef.current);
       }
 
-      const isZip = blob.type === 'application/zip';
-      const filename = isZip ? 
-        `swizard-export-${Date.now()}.zip` : 
-        `swizard-${Date.now()}.wav`;
-
-      triggerDownload(blob, filename);
-
-      console.log('[Swizard Export] Final file size:', (blob.size / 1024 / 1024).toFixed(2), 'MB');
-      toast.success(isZip ? 'Audio files saved as ZIP!' : 'Audio saved successfully!');
+      if (Array.isArray(result)) {
+        // Multiple files were returned without ZIP
+        if (!downloadTriggered) {
+          result.forEach((blob, index) => {
+            const fileName = `swizard-part${(index + 1).toString().padStart(2, '0')}.wav`;
+            triggerDownload(blob, fileName);
+          });
+        }
+        toast.success(`${result.length} audio files saved successfully!`);
+      } else {
+        // Single file or ZIP
+        const isZip = result.type === 'application/zip';
+        const filename = isZip ? 
+          `swizard-export-${Date.now()}.zip` : 
+          `swizard-${Date.now()}.wav`;
+        
+        triggerDownload(result, filename);
+        toast.success(isZip ? 'Audio files saved as ZIP!' : 'Audio saved successfully!');
+      }
 
     } catch (error: any) {
       console.error('[Swizard Export] Export error:', {
