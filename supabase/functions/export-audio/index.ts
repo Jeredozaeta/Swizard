@@ -63,7 +63,7 @@ serve(async (req) => {
     
     // Upload WAV header
     const { error: headerError } = await supabase.storage
-      .from('audio_exports')
+      .from('user_uploads')
       .upload(`${filename}.header`, headerBuffer);
 
     if (headerError) {
@@ -80,7 +80,7 @@ serve(async (req) => {
       
       // Upload chunk
       const { error: chunkError } = await supabase.storage
-        .from('audio_exports')
+        .from('user_uploads')
         .upload(`${filename}.chunk${i}`, chunkData);
 
       if (chunkError) {
@@ -90,7 +90,7 @@ serve(async (req) => {
 
     // Get signed URL for final file
     const { data: { signedUrl } } = await supabase.storage
-      .from('audio_exports')
+      .from('user_uploads')
       .createSignedUrl(filename, 3600); // 1 hour expiry
 
     return new Response(
