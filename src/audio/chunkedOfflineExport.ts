@@ -106,9 +106,7 @@ export async function chunkedOfflineExport({
     // Create backup download link
     const url = URL.createObjectURL(blob);
     toast.info(
-      <a href={url} download={`swizard-${Date.now()}.wav`} className="text-blue-400 hover:text-blue-300">
-        Click here if download doesn't start automatically
-      </a>,
+      `If the download doesn't start automatically, click here: ${url}`,
       { autoClose: 10000 }
     );
 
