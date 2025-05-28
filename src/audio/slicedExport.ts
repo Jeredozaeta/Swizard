@@ -1,6 +1,7 @@
 import { FrequencyChannel, AudioEffect } from '../types';
-import { chunkedOfflineExport } from './chunkedOfflineExport';
-import JSZip from 'jszip';
+import * as Comlink from 'comlink';
+import { wrap } from 'comlink';
+import type { ExportWorkerApi } from '../workers/exportWorker';
 
 interface SlicedExportOptions {
   durationSeconds: number;
@@ -17,58 +18,66 @@ export async function slicedExport({
   onProgress,
   onSliceComplete
 }: SlicedExportOptions): Promise<Blob | Blob[]> {
-  console.log('[Swizard Export] Starting sliced export:', { 
+  console.log('[Swizard Export] Starting export:', { 
     durationSeconds,
     numFrequencies: frequencies.filter(f => f.enabled).length,
     numEffects: Object.values(effects).filter(e => e.enabled).length
   });
 
-  const SLICE_DURATION = 2400; // 40 minutes per slice
-  const numSlices = Math.ceil(durationSeconds / SLICE_DURATION);
-  const blobs: Blob[] = [];
+  // Create worker and wrap with Comlink
+  const worker = new Worker(new URL('../workers/exportWorker.ts', import.meta.url), {
+    type: 'module'
+  });
+  const api = wrap<ExportWorkerApi>(worker);
 
   try {
-    for (let i = 0; i < numSlices; i++) {
-      const sliceStart = i * SLICE_DURATION;
-      const sliceDuration = Math.min(SLICE_DURATION, durationSeconds - sliceStart);
+    // Check for File System Access API support
+    const supportsFileSystem = 'showSaveFilePicker' in window;
+    let fileHandle: FileSystemFileHandle | null = null;
 
-      console.log(`[Swizard Export] Rendering slice ${i + 1}/${numSlices}:`, {
-        start: sliceStart,
-        duration: sliceDuration,
-        totalProgress: ((i / numSlices) * 100).toFixed(1) + '%'
-      });
-
-      const blob = await chunkedOfflineExport({
-        durationSeconds: sliceDuration,
-        frequencies,
-        effects,
-        onProgress: (sliceProgress) => {
-          const overallProgress = ((i * 100) + sliceProgress) / numSlices;
-          onProgress?.(Math.min(99, overallProgress));
-        }
-      });
-
-      blobs.push(blob);
-      onSliceComplete?.(i + 1, numSlices, blob);
-      
-      console.log(`[Swizard Export] Slice ${i + 1} complete:`, {
-        size: (blob.size / 1024 / 1024).toFixed(2) + ' MB',
-        type: blob.type
-      });
-
-      // Small delay between slices to prevent UI freeze
-      await new Promise(resolve => setTimeout(resolve, 100));
+    if (supportsFileSystem) {
+      try {
+        fileHandle = await window.showSaveFilePicker({
+          suggestedName: `swizard-export-${Date.now()}.wav`,
+          types: [{
+            description: 'WAV Audio',
+            accept: { 'audio/wav': ['.wav'] }
+          }]
+        });
+      } catch (error) {
+        console.log('[Swizard Export] User cancelled file picker or not supported');
+        fileHandle = null;
+      }
     }
 
-    // If only one slice, return it directly
+    // Generate audio in worker
+    const blobs = await api.generateAudio({
+      durationSeconds,
+      frequencies,
+      effects,
+      onProgress
+    });
+
+    // If we have a file handle, write directly to disk
+    if (fileHandle) {
+      const writable = await fileHandle.createWritable();
+      for (const blob of blobs) {
+        await writable.write(blob);
+      }
+      await writable.close();
+      return blobs[0]; // Return first blob for consistency
+    }
+
+    // If only one blob, return it directly
     if (blobs.length === 1) {
       onProgress?.(100);
       return blobs[0];
     }
 
-    // For multiple slices, try ZIP first
+    // Try ZIP first for multiple files
     try {
       console.log('[Swizard Export] Attempting ZIP creation...');
+      const JSZip = (await import('jszip')).default;
       const zip = new JSZip();
       
       blobs.forEach((blob, index) => {
@@ -95,9 +104,10 @@ export async function slicedExport({
   } catch (error) {
     console.error('[Swizard Export] Export error:', {
       message: error.message,
-      stack: error.stack,
-      phase: blobs.length > 0 ? `slice_${blobs.length}` : 'initial'
+      stack: error.stack
     });
     throw error;
+  } finally {
+    worker.terminate();
   }
 }
