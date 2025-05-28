@@ -28,6 +28,14 @@ export async function slicedExport({
   const worker = new Worker(new URL('../workers/exportWorker.ts', import.meta.url), {
     type: 'module'
   });
+  
+  // Set up progress handler before wrapping with Comlink
+  worker.onmessage = (event) => {
+    if (event.data?.type === 'progress' && onProgress) {
+      onProgress(event.data.percent);
+    }
+  };
+
   const api = wrap<ExportWorkerApi>(worker);
 
   try {
@@ -50,12 +58,11 @@ export async function slicedExport({
       }
     }
 
-    // Generate audio in worker
+    // Generate audio in worker - don't pass onProgress callback
     const blobs = await api.generateAudio({
       durationSeconds,
       frequencies,
-      effects,
-      onProgress
+      effects
     });
 
     // If we have a file handle, write directly to disk

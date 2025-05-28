@@ -7,12 +7,11 @@ export interface ExportWorkerApi {
     durationSeconds: number;
     frequencies: FrequencyChannel[];
     effects: Record<string, AudioEffect>;
-    onProgress?: (percent: number) => void;
   }) => Promise<Blob[]>;
 }
 
 const api: ExportWorkerApi = {
-  async generateAudio({ durationSeconds, frequencies, effects, onProgress }) {
+  async generateAudio({ durationSeconds, frequencies, effects }) {
     const SLICE_DURATION = 2400; // 40 minutes per slice
     const numSlices = Math.ceil(durationSeconds / SLICE_DURATION);
     const blobs: Blob[] = [];
@@ -33,7 +32,8 @@ const api: ExportWorkerApi = {
           effects,
           onProgress: (sliceProgress) => {
             const overallProgress = ((i * 100) + sliceProgress) / numSlices;
-            onProgress?.(Math.min(99, overallProgress));
+            // Use postMessage instead of callback
+            self.postMessage({ type: 'progress', percent: Math.min(99, overallProgress) });
           }
         });
 
