@@ -14,21 +14,38 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const exportTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const finalizingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const downloadURLRef = useRef<string | null>(null);
   const [downloadTriggered, setDownloadTriggered] = useState(false);
 
-  useEffect(() => {
-    const handleExportComplete = (event: CustomEvent<{ url: string; size: number }>) => {
-      downloadURLRef.current = event.detail.url;
-      console.log('[Swizard Export] Export complete, size:', (event.detail.size / 1024 / 1024).toFixed(2), 'MB');
-    };
+  const triggerDownload = (blob: Blob, filename: string) => {
+    if (downloadTriggered) return;
+    setDownloadTriggered(true);
 
-    document.addEventListener('swizardExportComplete', handleExportComplete as EventListener);
-    return () => {
-      document.removeEventListener('swizardExportComplete', handleExportComplete as EventListener);
-    };
-  }, []);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    // Clean up URL after a delay
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 60000);
+
+    toast.info(
+      <div>
+        If download doesn't start, {' '}
+        <button
+          onClick={() => triggerDownload(blob, filename)}
+          className="underline text-purple-400 hover:text-purple-300"
+        >
+          click here
+        </button>
+      </div>,
+      { autoClose: 10000 }
+    );
+  };
 
   const handleShare = async () => {
     try {
@@ -54,37 +71,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         closeButton: true
       });
     }
-  };
-
-  const triggerDownload = (blob: Blob, filename: string) => {
-    if (downloadTriggered) return;
-    setDownloadTriggered(true);
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    
-    // Clean up after a delay
-    setTimeout(() => {
-      URL.revokeObjectURL(url);
-    }, 60000);
-
-    toast.info(
-      <div>
-        If download doesn't start, {' '}
-        <button
-          onClick={() => triggerDownload(blob, filename)}
-          className="underline text-purple-400 hover:text-purple-300"
-        >
-          click here
-        </button>
-      </div>,
-      { autoClose: 10000 }
-    );
   };
 
   const handleExport = async () => {
@@ -142,9 +128,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         }
       });
 
-      // Clear timeouts since export completed
-      if (exportTimeoutRef.current) clearTimeout(exportTimeoutRef.current);
-      if (finalizingTimeoutRef.current) clearTimeout(finalizingTimeoutRef.current);
+      // Clear timeout since export completed
+      if (exportTimeoutRef.current) {
+        clearTimeout(exportTimeoutRef.current);
+      }
 
       const isZip = blob.type === 'application/zip';
       const filename = isZip ? 
@@ -169,8 +156,9 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         closeButton: true
       });
     } finally {
-      if (exportTimeoutRef.current) clearTimeout(exportTimeoutRef.current);
-      if (finalizingTimeoutRef.current) clearTimeout(finalizingTimeoutRef.current);
+      if (exportTimeoutRef.current) {
+        clearTimeout(exportTimeoutRef.current);
+      }
       setExporting(false);
       setProgress(0);
     }
