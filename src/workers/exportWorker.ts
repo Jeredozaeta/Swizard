@@ -12,7 +12,7 @@ export interface ExportWorkerApi {
 
 const api: ExportWorkerApi = {
   async generateAudio({ durationSeconds, frequencies, effects }) {
-    const SLICE_DURATION = 2400; // 40 minutes per slice
+    const SLICE_DURATION = 600; // 10 minutes per slice
     const numSlices = Math.ceil(durationSeconds / SLICE_DURATION);
     const blobs: Blob[] = [];
     const sampleRate = 48000;
@@ -61,7 +61,7 @@ const api: ExportWorkerApi = {
 
         blobs.push(wavBlob);
         
-        // Small delay between slices
+        // Small delay between slices to prevent UI freeze
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
