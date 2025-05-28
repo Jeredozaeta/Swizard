@@ -8,16 +8,14 @@ interface SlicedExportOptions {
   frequencies: FrequencyChannel[];
   effects: Record<string, AudioEffect>;
   onProgress?: (percent: number) => void;
-  onSliceComplete?: (sliceIndex: number, totalSlices: number, blob: Blob) => void;
 }
 
 export async function slicedExport({
   durationSeconds,
   frequencies,
   effects,
-  onProgress,
-  onSliceComplete
-}: SlicedExportOptions): Promise<Blob | Blob[]> {
+  onProgress
+}: SlicedExportOptions): Promise<Blob> {
   console.log('[Swizard Export] Starting export:', { 
     durationSeconds,
     numFrequencies: frequencies.filter(f => f.enabled).length,
@@ -39,75 +37,19 @@ export async function slicedExport({
   const api = wrap<ExportWorkerApi>(worker);
 
   try {
-    // Check for File System Access API support
-    const supportsFileSystem = 'showSaveFilePicker' in window;
-    let fileHandle: FileSystemFileHandle | null = null;
-
-    if (supportsFileSystem) {
-      try {
-        fileHandle = await window.showSaveFilePicker({
-          suggestedName: `swizard-export-${Date.now()}.wav`,
-          types: [{
-            description: 'WAV Audio',
-            accept: { 'audio/wav': ['.wav'] }
-          }]
-        });
-      } catch (error) {
-        console.log('[Swizard Export] User cancelled file picker or not supported');
-        fileHandle = null;
-      }
-    }
-
     // Generate audio in worker
-    const blobs = await api.generateAudio({
+    const audioBlob = await api.generateAudio({
       durationSeconds,
       frequencies,
       effects
     });
 
-    // If we have a file handle, write directly to disk
-    if (fileHandle) {
-      const writable = await fileHandle.createWritable();
-      for (const blob of blobs) {
-        await writable.write(blob);
-      }
-      await writable.close();
-      return blobs[0]; // Return first blob for consistency
+    if (!audioBlob || audioBlob.size === 0) {
+      throw new Error('Generated audio is empty');
     }
 
-    // If only one blob, return it directly
-    if (blobs.length === 1) {
-      onProgress?.(100);
-      return blobs[0];
-    }
-
-    // Try ZIP first for multiple files
-    try {
-      console.log('[Swizard Export] Attempting ZIP creation...');
-      const JSZip = (await import('jszip')).default;
-      const zip = new JSZip();
-      
-      blobs.forEach((blob, index) => {
-        const fileName = `swizard-part${(index + 1).toString().padStart(2, '0')}.wav`;
-        zip.file(fileName, blob);
-      });
-
-      const zipBlob = await zip.generateAsync({
-        type: 'blob',
-        compression: 'STORE'
-      });
-
-      if (zipBlob.size > 0) {
-        onProgress?.(100);
-        return zipBlob;
-      }
-    } catch (zipError) {
-      console.warn('[Swizard Export] ZIP creation failed, falling back to individual files:', zipError);
-    }
-
-    // If ZIP fails or is too large, return array of blobs
     onProgress?.(100);
-    return blobs;
+    return audioBlob;
   } catch (error) {
     console.error('[Swizard Export] Export error:', {
       message: error.message,

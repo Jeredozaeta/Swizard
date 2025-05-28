@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { Crown, Sparkles, Save, Cloud } from 'lucide-react';
+import { Crown, Sparkles, Save, Download } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import { slicedExport } from '../audio/slicedExport';
 
@@ -14,9 +14,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const exportTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [downloadTriggered, setDownloadTriggered] = useState(false);
   const downloadUrlsRef = useRef<string[]>([]);
-  const [serverExport, setServerExport] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -24,24 +22,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       downloadUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
     };
   }, []);
-
-  const triggerDownload = (blob: Blob, filename: string) => {
-    const url = URL.createObjectURL(blob);
-    downloadUrlsRef.current.push(url);
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-
-    // Clean up URL after a delay
-    setTimeout(() => {
-      URL.revokeObjectURL(url);
-      downloadUrlsRef.current = downloadUrlsRef.current.filter(u => u !== url);
-    }, 60000);
-  };
 
   const handleShare = async () => {
     try {
@@ -69,84 +49,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     }
   };
 
-  const handleServerExport = async () => {
-    if (selectedDuration < 30) {
-      toast.error('Please select a duration of at least 30 seconds');
-      return;
-    }
-
-    setExporting(true);
-    setProgress(0);
-    toast.info('Starting server-side export. This may take longer to prepare — file will be ready to download shortly.', {
-      autoClose: 5000
-    });
-
-    try {
-      // Create a simple progress callback that only passes the number
-      const progressCallback = (value: number) => {
-        setProgress(value);
-      };
-
-      const chunks: Blob[] = [];
-      let currentChunk = 0;
-      const totalChunks = Math.ceil(selectedDuration / 600); // 10-minute chunks
-
-      for (let i = 0; i < totalChunks; i++) {
-        const startTime = i * 600;
-        const duration = Math.min(600, selectedDuration - startTime);
-
-        const result = await slicedExport({
-          durationSeconds: duration,
-          frequencies: state.channels,
-          effects: state.effects,
-          onProgress: (percent) => {
-            const overallProgress = ((currentChunk * 100) + percent) / totalChunks;
-            progressCallback(Math.min(99, overallProgress));
-          }
-        });
-
-        if (Array.isArray(result)) {
-          chunks.push(...result);
-        } else {
-          chunks.push(result);
-        }
-        
-        currentChunk++;
-      }
-
-      // Upload chunks to server
-      const formData = new FormData();
-      chunks.forEach((chunk, index) => {
-        formData.append(`chunk${index}`, chunk);
-      });
-      formData.append('totalDuration', selectedDuration.toString());
-
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stitch-audio`, {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to process audio on server');
-      }
-
-      const { downloadUrl } = await response.json();
-      
-      // Trigger download of the complete file
-      window.location.href = downloadUrl;
-      
-      toast.success('Export complete! Your file will download automatically.');
-    } catch (error: any) {
-      console.error('Server export error:', error);
-      toast.error('Export failed - please try again', {
-        autoClose: 5000
-      });
-    } finally {
-      setExporting(false);
-      setProgress(0);
-    }
-  };
-
   const handleExport = async () => {
     if (selectedDuration < 30) {
       toast.error('Please select a duration of at least 30 seconds', {
@@ -169,13 +71,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     try {
       setExporting(true);
       setProgress(0);
-      setDownloadTriggered(false);
 
-      console.log('[Swizard Export] Starting export:', {
-        duration: selectedDuration,
-        activeEffects: Object.values(state.effects).filter(e => e.enabled).length,
-        activeChannels: state.channels.filter(c => c.enabled).length
-      });
+      toast.info(
+        'Your full audio will download as a single file. Please keep this tab open until the download completes.',
+        { autoClose: 8000 }
+      );
 
       // Set timeout for the entire export process (30 minutes)
       exportTimeoutRef.current = setTimeout(() => {
@@ -187,25 +87,12 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         setProgress(0);
       }, 1800000);
 
-      // Create a simple progress callback that only passes the number
-      const progressCallback = (value: number) => {
-        setProgress(value);
-      };
-
       const result = await slicedExport({
         durationSeconds: selectedDuration,
         frequencies: state.channels,
         effects: state.effects,
-        onProgress: progressCallback,
-        onSliceComplete: (current, total, blob) => {
-          // If we have multiple parts, trigger download for each part immediately
-          if (total > 1) {
-            const fileName = `swizard-part${current.toString().padStart(2, '0')}.wav`;
-            triggerDownload(blob, fileName);
-            toast.info(`Part ${current} of ${total} ready for download`, {
-              autoClose: 2000
-            });
-          }
+        onProgress: (value) => {
+          setProgress(value);
         }
       });
 
@@ -214,26 +101,24 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         clearTimeout(exportTimeoutRef.current);
       }
 
-      if (Array.isArray(result)) {
-        // Multiple files were returned without ZIP
-        if (!downloadTriggered) {
-          result.forEach((blob, index) => {
-            const fileName = `swizard-part${(index + 1).toString().padStart(2, '0')}.wav`;
-            triggerDownload(blob, fileName);
-          });
-        }
-        toast.success(`${result.length} audio files saved successfully!`);
-      } else {
-        // Single file or ZIP
-        const isZip = result.type === 'application/zip';
-        const filename = isZip ? 
-          `swizard-export-${Date.now()}.zip` : 
-          `swizard-${Date.now()}.wav`;
-        
-        triggerDownload(result, filename);
-        toast.success(isZip ? 'Audio files saved as ZIP!' : 'Audio saved successfully!');
-      }
+      const filename = `swizard-${Date.now()}.wav`;
+      const url = URL.createObjectURL(result);
+      downloadUrlsRef.current.push(url);
 
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      // Clean up URL after a delay
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+        downloadUrlsRef.current = downloadUrlsRef.current.filter(u => u !== url);
+      }, 60000);
+
+      toast.success('Audio saved successfully!');
     } catch (error: any) {
       console.error('[Swizard Export] Export error:', {
         message: error.message,
@@ -276,25 +161,12 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         </button>
         
         <button
-          onClick={serverExport ? handleServerExport : handleExport}
+          onClick={handleExport}
           disabled={exporting}
           className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 shadow-lg hover:shadow-xl transition-all duration-300"
         >
-          {serverExport ? <Cloud className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+          <Download className="h-4 w-4" />
           {getExportButtonText()}
-        </button>
-
-        <button
-          onClick={() => setServerExport(!serverExport)}
-          className={`btn btn-sm whitespace-nowrap flex-shrink-0 ${
-            serverExport 
-              ? 'bg-violet-600 text-white'
-              : 'bg-violet-600/20 text-violet-300'
-          }`}
-          title={serverExport ? 'Switch to local export' : 'Switch to server export'}
-        >
-          <Cloud className="h-4 w-4" />
-          Server Mode: {serverExport ? 'On' : 'Off'}
         </button>
 
         <button
