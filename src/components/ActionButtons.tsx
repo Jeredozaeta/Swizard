@@ -108,11 +108,16 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         setProgress(0);
       }, 1800000);
 
+      // Create a simple progress callback that only passes the number
+      const progressCallback = (value: number) => {
+        setProgress(value);
+      };
+
       const result = await slicedExport({
         durationSeconds: selectedDuration,
         frequencies: state.channels,
         effects: state.effects,
-        onProgress: setProgress,
+        onProgress: progressCallback,
         onSliceComplete: (current, total, blob) => {
           // If we have multiple parts, trigger download for each part immediately
           if (total > 1) {
