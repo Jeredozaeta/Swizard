@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import { Crown, Sparkles, Download } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
-import { slicedExport } from '../audio/slicedExport';
+import { chunkedOfflineExport } from '../audio/chunkedOfflineExport';
 
 interface ActionButtonsProps {
   onShowPricing: () => void;
@@ -63,34 +63,22 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       setExporting(true);
       setProgress(0);
 
-      const timestamp = Date.now();
-      const blobs = await slicedExport({
+      const blob = await chunkedOfflineExport({
         durationSeconds: selectedDuration,
         frequencies: state.channels,
         effects: state.effects,
         onProgress: setProgress
       });
 
-      // Download each blob
-      for (let i = 0; i < blobs.length; i++) {
-        const filename = blobs.length === 1
-          ? `swizard-${timestamp}.wav`
-          : `swizard-${timestamp}-part${i + 1}.wav`;
-
-        const url = URL.createObjectURL(blobs[i]);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        // Small delay between downloads if multiple parts
-        if (i < blobs.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
+      const filename = `swizard-${Date.now()}.wav`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
       toast.success('Export complete!', {
         autoClose: 4000
