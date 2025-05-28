@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { toast } from 'react-toastify';
-import { Crown, Sparkles, Save, Download } from 'lucide-react';
+import { Crown, Sparkles, Download } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import { slicedExport } from '../audio/slicedExport';
 
@@ -13,11 +13,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const { state, togglePlayback, sharePreset } = useAudio();
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [currentSlice, setCurrentSlice] = useState<number>(0);
-  const [totalSlices, setTotalSlices] = useState<number>(0);
-  const [manualDownloadUrl, setManualDownloadUrl] = useState<string | null>(null);
-  const [manualDownloadFilename, setManualDownloadFilename] = useState<string | null>(null);
-  const downloadTimeoutRef = useRef<number | null>(null);
 
   const handleShare = async () => {
     try {
@@ -45,66 +40,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     }
   };
 
-  const triggerDownload = async (blob: Blob, filename: string): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      try {
-        const url = URL.createObjectURL(blob);
-        console.log('Created blob URL:', url);
-
-        // Clear any existing manual download state
-        setManualDownloadUrl(null);
-        setManualDownloadFilename(null);
-
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-
-        // Set up download timeout detection
-        if (downloadTimeoutRef.current) {
-          window.clearTimeout(downloadTimeoutRef.current);
-        }
-
-        downloadTimeoutRef.current = window.setTimeout(() => {
-          console.log('Download timeout - showing manual download option');
-          setManualDownloadUrl(url);
-          setManualDownloadFilename(filename);
-          toast.info(
-            <div onClick={() => {
-              if (manualDownloadUrl) {
-                window.open(manualDownloadUrl, '_blank');
-              }
-            }} className="cursor-pointer">
-              Click here to download manually
-            </div>,
-            {
-              autoClose: false,
-              closeOnClick: false
-            }
-          );
-        }, 1000);
-
-        // Attempt automatic download
-        a.click();
-        console.log('download-triggered');
-
-        // Clean up
-        document.body.removeChild(a);
-        setTimeout(() => {
-          URL.revokeObjectURL(url);
-          if (downloadTimeoutRef.current) {
-            window.clearTimeout(downloadTimeoutRef.current);
-            downloadTimeoutRef.current = null;
-          }
-          resolve();
-        }, 1000);
-      } catch (error) {
-        console.error('Download error:', error);
-        reject(error);
-      }
-    });
-  };
-
   const handleExport = async () => {
     if (selectedDuration < 30) {
       toast.error('Please select a duration of at least 30 seconds', {
@@ -127,66 +62,33 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     try {
       setExporting(true);
       setProgress(0);
-      setCurrentSlice(0);
-      setTotalSlices(0);
-      setManualDownloadUrl(null);
-      setManualDownloadFilename(null);
 
       const timestamp = Date.now();
       const blobs = await slicedExport({
         durationSeconds: selectedDuration,
         frequencies: state.channels,
         effects: state.effects,
-        onProgress: setProgress,
-        onSliceComplete: (slice, total) => {
-          setCurrentSlice(slice);
-          setTotalSlices(total);
-          toast.success(`Slice ${slice} of ${total} complete`, {
-            autoClose: 2000
-          });
-        }
+        onProgress: setProgress
       });
 
-      // Download each slice
+      // Download each blob
       for (let i = 0; i < blobs.length; i++) {
         const filename = blobs.length === 1
-          ? `swizard-export-${timestamp}.wav`
-          : `swizard-export-${timestamp}-part-${i + 1}.wav`;
+          ? `swizard-${timestamp}.wav`
+          : `swizard-${timestamp}-part${i + 1}.wav`;
 
-        try {
-          await triggerDownload(blobs[i], filename);
-          
-          // Small delay between downloads
-          if (i < blobs.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-        } catch (downloadError) {
-          console.error('Download error:', downloadError);
-          // Create manual download link
-          const url = URL.createObjectURL(blobs[i]);
-          setManualDownloadUrl(url);
-          setManualDownloadFilename(filename);
-          
-          toast.error(
-            <div onClick={() => {
-              if (manualDownloadUrl) {
-                window.open(manualDownloadUrl, '_blank');
-              }
-            }} className="cursor-pointer">
-              Download failed - Click here to try manually
-            </div>,
-            { autoClose: false, closeOnClick: false }
-          );
-          
-          // Wait for user action
-          await new Promise(resolve => {
-            const checkInterval = setInterval(() => {
-              if (!manualDownloadUrl) {
-                clearInterval(checkInterval);
-                resolve(true);
-              }
-            }, 1000);
-          });
+        const url = URL.createObjectURL(blobs[i]);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        // Small delay between downloads if multiple parts
+        if (i < blobs.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
 
@@ -195,7 +97,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       });
     } catch (error) {
       console.error('Export error:', error);
-      toast.error('Export failed - see console for details', {
+      toast.error('Export failed - please try again', {
         autoClose: 5000,
         pauseOnHover: true,
         closeButton: true
@@ -203,16 +105,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     } finally {
       setExporting(false);
       setProgress(0);
-      setCurrentSlice(0);
-      setTotalSlices(0);
     }
   };
 
   const getExportButtonText = () => {
     if (exporting) {
-      if (totalSlices > 1) {
-        return `Rendering slice ${currentSlice}/${totalSlices}... ${Math.round(progress)}%`;
-      }
       if (progress === 100) {
         return 'Finalizing...';
       }
@@ -236,23 +133,9 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
           disabled={exporting}
           className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 shadow-lg hover:shadow-xl transition-all duration-300"
         >
-          <Save className="h-4 w-4" />
+          <Download className="h-4 w-4" />
           {getExportButtonText()}
         </button>
-
-        {manualDownloadUrl && manualDownloadFilename && (
-          <button
-            onClick={() => {
-              window.open(manualDownloadUrl, '_blank');
-              setManualDownloadUrl(null);
-              setManualDownloadFilename(null);
-            }}
-            className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500"
-          >
-            <Download className="h-4 w-4" />
-            Download {manualDownloadFilename}
-          </button>
-        )}
 
         <button
           onClick={handleShare}
