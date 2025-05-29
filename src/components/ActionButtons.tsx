@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { Crown, Sparkles, Save, Download, Image, Video, X } from 'lucide-react';
+import { Crown, Sparkles, Save, Download, Image, Video, X, Desktop } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import { slicedExport } from '../audio/slicedExport';
 
@@ -317,6 +317,23 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
           <Download className="h-4 w-4" />
           {getExportButtonText()}
         </button>
+
+        {selectedDuration > 3600 && !isElectron && (
+          <div className="has-tooltip">
+            <a
+              href="https://github.com/swizard-app/swizard/releases/latest"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-secondary btn-sm whitespace-nowrap flex-shrink-0"
+            >
+              <Desktop className="h-4 w-4" />
+              Download Desktop App (Recommended)
+            </a>
+            <div className="tooltip -translate-y-full -translate-x-1/2 left-1/2 top-0 w-64 text-xs">
+              Desktop app avoids browser limits and supports up to 12-hour offline exports
+            </div>
+          </div>
+        )}
 
         <button
           onClick={handleShare}
