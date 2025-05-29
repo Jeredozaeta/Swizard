@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { Crown, Sparkles, Save, Download, Image, Video, X, LampDesk as Desktop } from 'lucide-react';
+import { Crown, Sparkles, Save, Download, Image, Video, X, LampDesk as Desktop, WifiOff } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import { slicedExport } from '../audio/slicedExport';
 
@@ -23,6 +23,34 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     preview?: string;
   }>({ type: 'black' });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isOnline, setIsOnline] = useState(true);
+
+  useEffect(() => {
+    if (isElectron) {
+      // Initial online status check
+      window.electron.getOnlineStatus().then(setIsOnline);
+
+      // Listen for online status changes
+      const cleanup = window.electron.onOnlineStatusChanged((status) => {
+        setIsOnline(status);
+      });
+
+      return cleanup;
+    } else {
+      // Browser online/offline detection
+      const handleOnline = () => setIsOnline(true);
+      const handleOffline = () => setIsOnline(false);
+
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+      setIsOnline(navigator.onLine);
+
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
+    }
+  }, [isElectron]);
 
   useEffect(() => {
     return () => {
@@ -34,6 +62,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   }, []);
 
   const handleShare = async () => {
+    if (!isOnline) {
+      toast.error('Sharing is not available while offline');
+      return;
+    }
+
     try {
       const name = prompt('Enter a name for this preset:');
       if (!name) return;
@@ -185,6 +218,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       setProgress(0);
 
       if (selectedDuration > 3600) {
+        if (!isOnline) {
+          toast.error('Server export is not available while offline. Please use the desktop app for long exports.');
+          return;
+        }
+
         toast.info(
           'Processing long audio file. This may take a few minutes. Please keep this tab open.',
           { autoClose: 8000 }
@@ -205,7 +243,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         setProgress(0);
       }, 45000000);
 
-      if (selectedDuration > 3600) {
+      if (selectedDuration > 3600 && isOnline) {
         setProgress(10);
         const formData = new FormData();
         formData.append('totalDuration', selectedDuration.toString());
@@ -337,10 +375,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
 
         <button
           onClick={handleShare}
+          disabled={!isOnline}
           className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0"
-          title="Share your creation to inspire others"
+          title={!isOnline ? 'Sharing is not available while offline' : 'Share your creation to inspire others'}
         >
-          <Sparkles className="h-4 w-4" />
+          {!isOnline ? <WifiOff className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
           Inspire Others
         </button>
         
@@ -479,5 +518,3 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     </section>
   );
 };
-
-export default ActionButtons;

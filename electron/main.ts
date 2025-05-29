@@ -5,6 +5,7 @@ import { checkDiskSpace } from './utils';
 import { setupFfmpeg, exportWithFfmpeg } from './ffmpeg';
 
 let mainWindow: BrowserWindow | null = null;
+let isOnline = true;
 
 const createWindow = () => {
   mainWindow = new BrowserWindow({
@@ -25,9 +26,23 @@ const createWindow = () => {
   }
 };
 
+// Check online status
+const checkOnlineStatus = () => {
+  const newIsOnline = navigator.onLine;
+  if (newIsOnline !== isOnline) {
+    isOnline = newIsOnline;
+    mainWindow?.webContents.send('online-status-changed', isOnline);
+  }
+};
+
 app.whenReady().then(() => {
   createWindow();
   setupFfmpeg();
+  
+  // Set up online/offline detection
+  window.addEventListener('online', checkOnlineStatus);
+  window.addEventListener('offline', checkOnlineStatus);
+  checkOnlineStatus();
   
   if (process.env.NODE_ENV === 'production') {
     autoUpdater.checkForUpdatesAndNotify();
@@ -83,6 +98,11 @@ ipcMain.handle('start-ffmpeg-export', async (_, options) => {
     console.error('FFmpeg export error:', error);
     throw error;
   }
+});
+
+// Handle online status check
+ipcMain.handle('get-online-status', () => {
+  return isOnline;
 });
 
 // Auto-updater events

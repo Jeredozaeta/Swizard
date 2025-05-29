@@ -31,5 +31,12 @@ contextBridge.exposeInMainWorld('electron', {
   onUpdateDownloaded: (callback: () => void) => {
     ipcRenderer.on('update-downloaded', () => callback());
     return () => ipcRenderer.removeAllListeners('update-downloaded');
+  },
+
+  getOnlineStatus: () => ipcRenderer.invoke('get-online-status'),
+  
+  onOnlineStatusChanged: (callback: (isOnline: boolean) => void) => {
+    ipcRenderer.on('online-status-changed', (_, isOnline) => callback(isOnline));
+    return () => ipcRenderer.removeAllListeners('online-status-changed');
   }
 });
