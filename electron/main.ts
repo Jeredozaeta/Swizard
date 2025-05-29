@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import { checkDiskSpace } from './utils';
-import { setupFfmpeg } from './ffmpeg';
+import { setupFfmpeg, exportWithFfmpeg } from './ffmpeg';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -62,6 +62,27 @@ ipcMain.handle('show-save-dialog', async (_, options) => {
 // Handle disk space check
 ipcMain.handle('check-disk-space', async (_, filePath) => {
   return await checkDiskSpace(filePath);
+});
+
+// Handle FFmpeg export
+ipcMain.handle('start-ffmpeg-export', async (_, options) => {
+  const { chunks, outputPath, format, background } = options;
+  
+  try {
+    await exportWithFfmpeg(
+      chunks,
+      outputPath,
+      format,
+      background,
+      (progress) => {
+        mainWindow?.webContents.send('export-progress', progress);
+      }
+    );
+    return { success: true };
+  } catch (error) {
+    console.error('FFmpeg export error:', error);
+    throw error;
+  }
 });
 
 // Auto-updater events

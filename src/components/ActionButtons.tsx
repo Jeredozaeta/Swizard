@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { Crown, Sparkles, Save, Download } from 'lucide-react';
+import { Crown, Sparkles, Save, Download, Image, Video, X } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import { slicedExport } from '../audio/slicedExport';
 
@@ -16,11 +16,20 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const exportTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const downloadUrlsRef = useRef<string[]>([]);
   const isElectron = !!(window as any).electron;
+  const [showBackgroundPicker, setShowBackgroundPicker] = useState(false);
+  const [selectedBackground, setSelectedBackground] = useState<{
+    type: 'black' | 'image' | 'video';
+    file?: File;
+    preview?: string;
+  }>({ type: 'black' });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     return () => {
-      // Cleanup URLs on unmount
       downloadUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+      if (selectedBackground.preview) {
+        URL.revokeObjectURL(selectedBackground.preview);
+      }
     };
   }, []);
 
@@ -50,19 +59,43 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     }
   };
 
+  const handleBackgroundSelect = (type: 'black' | 'image' | 'video') => {
+    if (type === 'black') {
+      setSelectedBackground({ type: 'black' });
+    } else {
+      fileInputRef.current?.click();
+      setSelectedBackground({ type });
+    }
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (selectedBackground.type === 'image' && !file.type.startsWith('image/')) {
+      toast.error('Please select an image file (JPG or PNG)');
+      return;
+    }
+
+    if (selectedBackground.type === 'video' && !file.type.startsWith('video/')) {
+      toast.error('Please select a video file (MP4)');
+      return;
+    }
+
+    const preview = URL.createObjectURL(file);
+    setSelectedBackground({ ...selectedBackground, file, preview });
+  };
+
   const handleElectronExport = async () => {
     try {
-      // Show save dialog
-      const defaultPath = `swizard-${Date.now()}.wav`;
+      const isVideo = selectedBackground.type !== 'black';
+      const defaultPath = `swizard-${Date.now()}.${isVideo ? 'mp4' : 'wav'}`;
       const filePath = await window.electron.showSaveDialog({ defaultPath });
       
-      if (!filePath) {
-        return; // User cancelled
-      }
+      if (!filePath) return;
 
-      // Check disk space
       const { available } = await window.electron.checkDiskSpace(filePath);
-      const requiredSpace = selectedDuration * 192000; // Rough estimate: 192kb/s stereo
+      const requiredSpace = selectedDuration * (isVideo ? 384000 : 192000);
 
       if (available < requiredSpace) {
         toast.error(`Not enough disk space. Need ${Math.ceil(requiredSpace / 1024 / 1024)} MB free.`);
@@ -72,9 +105,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       setExporting(true);
       setProgress(0);
 
-      // Generate audio in 10-minute chunks
       const chunks: ArrayBuffer[] = [];
-      const chunkDuration = 600; // 10 minutes
+      const chunkDuration = 600;
       const numChunks = Math.ceil(selectedDuration / chunkDuration);
 
       for (let i = 0; i < numChunks; i++) {
@@ -87,28 +119,31 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
           effects: state.effects,
           onProgress: (value) => {
             const chunkProgress = (i * 100 + value) / numChunks;
-            setProgress(Math.round(chunkProgress * 0.7)); // 70% for generation
+            setProgress(Math.round(chunkProgress * 0.7));
           }
         });
 
         chunks.push(await result.arrayBuffer());
       }
 
-      // Start FFmpeg export
       const cleanup = window.electron.onExportProgress((ffmpegProgress) => {
-        setProgress(70 + Math.round(ffmpegProgress * 0.3)); // Remaining 30% for FFmpeg
+        setProgress(70 + Math.round(ffmpegProgress * 0.3));
       });
 
       await window.electron.startFfmpegExport({
         chunks,
         outputPath: filePath,
-        format: 'wav'
+        format: isVideo ? 'mp4' : 'wav',
+        background: selectedBackground.file ? {
+          type: selectedBackground.type,
+          path: selectedBackground.file.path
+        } : undefined
       });
 
-      cleanup(); // Remove progress listener
+      cleanup();
       setProgress(100);
       
-      toast.success(`Audio saved to ${filePath}`, {
+      toast.success(`File saved to ${filePath}`, {
         autoClose: 5000
       });
     } catch (error: any) {
@@ -117,6 +152,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     } finally {
       setExporting(false);
       setProgress(0);
+      setShowBackgroundPicker(false);
     }
   };
 
@@ -139,18 +175,16 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       return;
     }
 
+    if (isElectron) {
+      setShowBackgroundPicker(true);
+      return;
+    }
+
     try {
       setExporting(true);
       setProgress(0);
 
-      // Use Electron export for desktop app
-      if (isElectron) {
-        await handleElectronExport();
-        return;
-      }
-
-      // Show appropriate message based on duration
-      if (selectedDuration > 3600) { // > 60 minutes
+      if (selectedDuration > 3600) {
         toast.info(
           'Processing long audio file. This may take a few minutes. Please keep this tab open.',
           { autoClose: 8000 }
@@ -162,7 +196,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         );
       }
 
-      // Set timeout for the entire export process (12 hours + 30 minutes buffer)
       exportTimeoutRef.current = setTimeout(() => {
         console.error('[Swizard Export] Export timed out after 12.5 hours');
         toast.error('Export timed out. Please try using a shorter duration.', {
@@ -170,11 +203,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         });
         setExporting(false);
         setProgress(0);
-      }, 45000000); // 12.5 hours in milliseconds
+      }, 45000000);
 
-      if (selectedDuration > 3600) { // > 60 minutes
+      if (selectedDuration > 3600) {
         setProgress(10);
-        // Use server-side export for long durations
         const formData = new FormData();
         formData.append('totalDuration', selectedDuration.toString());
         formData.append('channels', JSON.stringify(state.channels));
@@ -197,7 +229,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
           throw new Error('No download URL received from server');
         }
 
-        // Create download link
         const a = document.createElement('a');
         a.href = downloadUrl;
         a.download = `swizard-${Date.now()}.wav`;
@@ -206,7 +237,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         document.body.removeChild(a);
         setProgress(100);
       } else {
-        // Use client-side export for shorter durations
         const result = await slicedExport({
           durationSeconds: selectedDuration,
           frequencies: state.channels,
@@ -216,7 +246,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
           }
         });
 
-        // Clear timeout since export completed
         if (exportTimeoutRef.current) {
           clearTimeout(exportTimeoutRef.current);
         }
@@ -232,7 +261,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         a.click();
         document.body.removeChild(a);
 
-        // Clean up URL after a delay
         setTimeout(() => {
           URL.revokeObjectURL(url);
           downloadUrlsRef.current = downloadUrlsRef.current.filter(u => u !== url);
@@ -315,6 +343,119 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
               className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
+          </div>
+        </div>
+      )}
+
+      {showBackgroundPicker && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-[#1a0b2e] rounded-lg border border-purple-500/20 p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-purple-200">Choose Export Format</h3>
+              <button
+                onClick={() => setShowBackgroundPicker(false)}
+                className="p-1 hover:bg-purple-500/20 rounded-full transition-colors"
+              >
+                <X className="h-5 w-5 text-purple-400" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <button
+                onClick={() => {
+                  setShowBackgroundPicker(false);
+                  handleElectronExport();
+                }}
+                className="w-full flex items-center gap-3 p-4 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 transition-colors"
+              >
+                <Save className="h-5 w-5 text-purple-400" />
+                <div className="text-left">
+                  <div className="font-medium text-purple-200">WAV Audio</div>
+                  <div className="text-sm text-purple-300/70">High-quality audio file</div>
+                </div>
+              </button>
+
+              <div className="relative">
+                <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-purple-500/50 to-transparent" />
+                <div className="absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-transparent via-purple-500/50 to-transparent" />
+                <div className="py-4 text-center text-sm text-purple-300/70">or create video with background</div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  onClick={() => handleBackgroundSelect('black')}
+                  className={`p-4 rounded-lg border transition-colors ${
+                    selectedBackground.type === 'black'
+                      ? 'border-purple-500 bg-purple-500/20'
+                      : 'border-purple-500/20 hover:border-purple-500/50'
+                  }`}
+                >
+                  <div className="w-full h-20 bg-black rounded mb-2" />
+                  <div className="text-sm text-purple-200">Black Screen</div>
+                </button>
+
+                <button
+                  onClick={() => handleBackgroundSelect('image')}
+                  className={`p-4 rounded-lg border transition-colors ${
+                    selectedBackground.type === 'image'
+                      ? 'border-purple-500 bg-purple-500/20'
+                      : 'border-purple-500/20 hover:border-purple-500/50'
+                  }`}
+                >
+                  {selectedBackground.type === 'image' && selectedBackground.preview ? (
+                    <div 
+                      className="w-full h-20 rounded mb-2 bg-cover bg-center"
+                      style={{ backgroundImage: `url(${selectedBackground.preview})` }}
+                    />
+                  ) : (
+                    <div className="w-full h-20 bg-purple-500/10 rounded mb-2 flex items-center justify-center">
+                      <Image className="h-8 w-8 text-purple-400" />
+                    </div>
+                  )}
+                  <div className="text-sm text-purple-200">Custom Image</div>
+                </button>
+
+                <button
+                  onClick={() => handleBackgroundSelect('video')}
+                  className={`p-4 rounded-lg border transition-colors ${
+                    selectedBackground.type === 'video'
+                      ? 'border-purple-500 bg-purple-500/20'
+                      : 'border-purple-500/20 hover:border-purple-500/50'
+                  }`}
+                >
+                  {selectedBackground.type === 'video' && selectedBackground.preview ? (
+                    <video 
+                      src={selectedBackground.preview}
+                      className="w-full h-20 rounded mb-2 object-cover"
+                      autoPlay
+                      muted
+                      loop
+                    />
+                  ) : (
+                    <div className="w-full h-20 bg-purple-500/10 rounded mb-2 flex items-center justify-center">
+                      <Video className="h-8 w-8 text-purple-400" />
+                    </div>
+                  )}
+                  <div className="text-sm text-purple-200">Custom Video</div>
+                </button>
+              </div>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                accept={selectedBackground.type === 'image' ? 'image/*' : 'video/*'}
+                onChange={handleFileSelect}
+              />
+
+              <button
+                onClick={handleElectronExport}
+                disabled={selectedBackground.type !== 'black' && !selectedBackground.file}
+                className="w-full btn btn-primary py-2.5"
+              >
+                Export as MP4
+              </button>
+            </div>
           </div>
         </div>
       )}

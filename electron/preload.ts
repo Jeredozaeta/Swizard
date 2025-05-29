@@ -5,6 +5,10 @@ contextBridge.exposeInMainWorld('electron', {
     chunks: ArrayBuffer[];
     outputPath: string;
     format: 'wav' | 'mp4';
+    background?: {
+      type: 'image' | 'video';
+      path: string;
+    };
   }) => ipcRenderer.invoke('start-ffmpeg-export', options),
   
   showSaveDialog: (options: {
