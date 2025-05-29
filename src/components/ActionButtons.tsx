@@ -15,6 +15,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   const [progress, setProgress] = useState(0);
   const exportTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const downloadUrlsRef = useRef<string[]>([]);
+  const isElectron = !!(window as any).electron;
 
   useEffect(() => {
     return () => {
@@ -49,6 +50,76 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     }
   };
 
+  const handleElectronExport = async () => {
+    try {
+      // Show save dialog
+      const defaultPath = `swizard-${Date.now()}.wav`;
+      const filePath = await window.electron.showSaveDialog({ defaultPath });
+      
+      if (!filePath) {
+        return; // User cancelled
+      }
+
+      // Check disk space
+      const { available } = await window.electron.checkDiskSpace(filePath);
+      const requiredSpace = selectedDuration * 192000; // Rough estimate: 192kb/s stereo
+
+      if (available < requiredSpace) {
+        toast.error(`Not enough disk space. Need ${Math.ceil(requiredSpace / 1024 / 1024)} MB free.`);
+        return;
+      }
+
+      setExporting(true);
+      setProgress(0);
+
+      // Generate audio in 10-minute chunks
+      const chunks: ArrayBuffer[] = [];
+      const chunkDuration = 600; // 10 minutes
+      const numChunks = Math.ceil(selectedDuration / chunkDuration);
+
+      for (let i = 0; i < numChunks; i++) {
+        const start = i * chunkDuration;
+        const duration = Math.min(chunkDuration, selectedDuration - start);
+
+        const result = await slicedExport({
+          durationSeconds: duration,
+          frequencies: state.channels,
+          effects: state.effects,
+          onProgress: (value) => {
+            const chunkProgress = (i * 100 + value) / numChunks;
+            setProgress(Math.round(chunkProgress * 0.7)); // 70% for generation
+          }
+        });
+
+        chunks.push(await result.arrayBuffer());
+      }
+
+      // Start FFmpeg export
+      const cleanup = window.electron.onExportProgress((ffmpegProgress) => {
+        setProgress(70 + Math.round(ffmpegProgress * 0.3)); // Remaining 30% for FFmpeg
+      });
+
+      await window.electron.startFfmpegExport({
+        chunks,
+        outputPath: filePath,
+        format: 'wav'
+      });
+
+      cleanup(); // Remove progress listener
+      setProgress(100);
+      
+      toast.success(`Audio saved to ${filePath}`, {
+        autoClose: 5000
+      });
+    } catch (error: any) {
+      console.error('Export error:', error);
+      toast.error(error.message || 'Export failed. Please try again.');
+    } finally {
+      setExporting(false);
+      setProgress(0);
+    }
+  };
+
   const handleExport = async () => {
     if (selectedDuration < 30) {
       toast.error('Please select a duration of at least 30 seconds', {
@@ -71,6 +142,12 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     try {
       setExporting(true);
       setProgress(0);
+
+      // Use Electron export for desktop app
+      if (isElectron) {
+        await handleElectronExport();
+        return;
+      }
 
       // Show appropriate message based on duration
       if (selectedDuration > 3600) { // > 60 minutes
