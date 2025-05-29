@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { Crown, Sparkles, Save, Download, Image, Video, X, Desktop } from 'lucide-react';
+import { Crown, Sparkles, Save, Download, Image, Video, X, LampDesk as Desktop } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import { slicedExport } from '../audio/slicedExport';
 
