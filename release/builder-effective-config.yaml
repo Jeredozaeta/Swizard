@@ -1,0 +1,27 @@
+directories:
+  output: release
+  buildResources: build
+appId: com.swizard.app
+productName: Swizard
+files:
+  - filter:
+      - dist/**/*
+      - electron/**/*
+extraResources:
+  - from: node_modules/ffmpeg-static/
+    to: ffmpeg
+    filter:
+      - '**/*'
+mac:
+  target:
+    - dmg
+  category: public.app-category.music
+  artifactName: ${productName}-${version}-universal.${ext}
+win:
+  target:
+    - nsis
+  artifactName: ${productName}-Setup-${version}.${ext}
+publish:
+  provider: github
+  private: false
+electronVersion: 29.4.6
