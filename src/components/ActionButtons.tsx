@@ -359,7 +359,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         {selectedDuration > 3600 && !isElectron && (
           <div className="has-tooltip">
             <a
-              href="https://github.com/swizard-app/swizard/releases/latest"
+              href="https://github.com/Jeredozaeta/Swizard/releases/latest"
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-secondary btn-sm whitespace-nowrap flex-shrink-0"
