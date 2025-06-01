@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import MainContent from './components/MainContent';
 import Success from './components/Success';
@@ -17,7 +17,7 @@ import { AuthProvider } from './context/AuthContext';
 const App: React.FC = () => {
   return (
     <ErrorBoundary>
-      <BrowserRouter>
+      <HashRouter>
         <AuthProvider>
           <StripeProvider>
             <AudioProvider>
@@ -44,7 +44,7 @@ const App: React.FC = () => {
             </AudioProvider>
           </StripeProvider>
         </AuthProvider>
-      </BrowserRouter>
+      </HashRouter>
     </ErrorBoundary>
   );
 };
