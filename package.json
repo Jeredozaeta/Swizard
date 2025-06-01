@@ -68,9 +68,12 @@
     "directories": {
       "output": "release"
     },
+    "asar": true,
     "files": [
-      "dist/**/*",
-      "electron/**/*"
+      "!**/node_modules/*/{README.md,readme.md,CHANGELOG.md}",
+      "!**/.git/**",
+      "dist/**",
+      "electron/**"
     ],
     "extraResources": [
       {
