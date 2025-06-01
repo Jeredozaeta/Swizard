@@ -94,9 +94,6 @@
       ],
       "artifactName": "${productName}-Setup-${version}.${ext}"
     },
-    "publish": {
-      "provider": "github",
-      "private": false
-    }
+    "publish": null
   }
 }
