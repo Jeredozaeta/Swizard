@@ -119,44 +119,6 @@ export function buildToneGraph(
         currentNode = pulseGain;
         break;
       }
-
-      case 'flanger': {
-        // Create nodes for flanger effect
-        const delay = ctx.createDelay();
-        const feedback = ctx.createGain();
-        const wetGain = ctx.createGain();
-        const dryGain = ctx.createGain();
-        const lfo = ctx.createOscillator();
-        const lfoGain = ctx.createGain();
-
-        // Set initial values
-        delay.delayTime.value = 0.005;
-        feedback.gain.value = 0.5;
-        wetGain.gain.value = 0.5;
-        dryGain.gain.value = 0.5;
-        lfo.frequency.value = effect.value;
-        lfoGain.gain.value = 0.002;
-
-        // Connect LFO to delay time
-        lfo.connect(lfoGain);
-        lfoGain.connect(delay.delayTime);
-
-        // Create feedback loop
-        currentNode.connect(delay);
-        delay.connect(feedback);
-        feedback.connect(delay);
-
-        // Mix wet and dry signals
-        delay.connect(wetGain);
-        currentNode.connect(dryGain);
-        wetGain.connect(compressor);
-        dryGain.connect(compressor);
-
-        // Start LFO
-        lfo.start();
-        currentNode = delay;
-        break;
-      }
     }
   });
 

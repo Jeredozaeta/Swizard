@@ -27,7 +27,6 @@ const AudioFXPanel: React.FC = () => {
 
   const specialEffects = [
     'stutter',
-    'flanger',
     'shepard',
     'glitch',
     'pingPong'
@@ -158,7 +157,7 @@ const AudioFXPanel: React.FC = () => {
         ))}
       </div>
 
-      <div className="mt-2 md:mt-3 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-5 gap-2 md:gap-3">
+      <div className="mt-2 md:mt-3 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
         {specialEffects.map(id => (
           <div key={id} className="col-span-1">
             <EffectCard effect={state.effects[id]} />
