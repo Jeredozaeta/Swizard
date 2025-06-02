@@ -119,6 +119,43 @@ export function buildToneGraph(
         currentNode = pulseGain;
         break;
       }
+
+      case 'reverb': {
+        const convolver = ctx.createConvolver();
+        const reverbTime = effect.value / 33.33; // Convert 0-100 to 0-3 seconds
+        const sampleRate = ctx.sampleRate;
+        const length = sampleRate * reverbTime;
+        const impulse = ctx.createBuffer(2, length, sampleRate);
+        
+        // Generate impulse response
+        for (let channel = 0; channel < 2; channel++) {
+          const channelData = impulse.getChannelData(channel);
+          for (let i = 0; i < length; i++) {
+            channelData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (sampleRate * reverbTime));
+          }
+        }
+        
+        convolver.buffer = impulse;
+        
+        // Create wet/dry mix
+        const dryGain = ctx.createGain();
+        const wetGain = ctx.createGain();
+        const wetLevel = Math.min(0.8, effect.value / 100);
+        const dryLevel = Math.max(0.2, 1 - wetLevel);
+        
+        wetGain.gain.value = wetLevel;
+        dryGain.gain.value = dryLevel;
+        
+        currentNode.connect(dryGain);
+        currentNode.connect(convolver);
+        convolver.connect(wetGain);
+        
+        dryGain.connect(compressor);
+        wetGain.connect(compressor);
+        
+        currentNode = wetGain;
+        break;
+      }
     }
   });
 
