@@ -145,24 +145,6 @@ export async function renderOffline({ durationSeconds, frequencies, effects }: R
           effectInput = reverb;
           break;
         }
-
-        case 'flanger': {
-          const flanger = new Tone.FeedbackDelay({
-            delayTime: 0.005,
-            feedback: 0.5
-          }).connect(effectInput);
-
-          // Create LFO for delay time modulation
-          const lfo = new Tone.LFO({
-            frequency: 0.1 + (effect.value / 100) * 3.9,
-            min: 0.003,
-            max: 0.007
-          }).connect(flanger.delayTime);
-
-          lfo.start();
-          effectInput = flanger;
-          break;
-        }
       }
     });
 
