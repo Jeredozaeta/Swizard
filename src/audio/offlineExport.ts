@@ -139,9 +139,22 @@ export async function renderOffline({ durationSeconds, frequencies, effects }: R
         
         case 'reverb': {
           const reverb = new Tone.Reverb({
-            decay: effect.value / 30,
-            preDelay: 0.01
+            decay: effect.decayTime,
+            preDelay: effect.preDelay,
+            wet: effect.wetDryMix
           }).connect(effectInput);
+          
+          // Add filters for damping
+          const lowpass = new Tone.Filter({
+            type: 'lowpass',
+            frequency: 20000 * (1 - effect.highDamping)
+          }).connect(reverb);
+          
+          const highpass = new Tone.Filter({
+            type: 'highpass',
+            frequency: 20 + (effect.lowDamping * 980)
+          }).connect(lowpass);
+          
           effectInput = reverb;
           break;
         }
