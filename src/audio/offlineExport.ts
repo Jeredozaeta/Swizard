@@ -140,7 +140,8 @@ export async function renderOffline({ durationSeconds, frequencies, effects }: R
         case 'reverb': {
           const reverb = new Tone.Reverb({
             decay: effect.value / 30,
-            preDelay: 0.01
+            preDelay: 0.01,
+            wet: effect.value / 100
           }).connect(effectInput);
           effectInput = reverb;
           break;
