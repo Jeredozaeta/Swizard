@@ -119,65 +119,6 @@ export function buildToneGraph(
         currentNode = pulseGain;
         break;
       }
-
-      case 'reverb': {
-        // Create convolver node for reverb
-        const convolver = ctx.createConvolver();
-        
-        // Create impulse response
-        const sampleRate = ctx.sampleRate;
-        const length = sampleRate * effect.decayTime;
-        const impulse = ctx.createBuffer(2, length, sampleRate);
-        
-        // Generate impulse response based on room size
-        for (let channel = 0; channel < 2; channel++) {
-          const channelData = impulse.getChannelData(channel);
-          for (let i = 0; i < length; i++) {
-            // Early reflections
-            if (i < sampleRate * effect.preDelay) {
-              channelData[i] = 0;
-            } else {
-              // Exponential decay
-              const t = i / length;
-              const decay = Math.exp(-t * effect.value / 20);
-              channelData[i] = (Math.random() * 2 - 1) * decay * effect.diffusion;
-            }
-          }
-        }
-        
-        convolver.buffer = impulse;
-        
-        // Create wet/dry mix
-        const wetGain = ctx.createGain();
-        const dryGain = ctx.createGain();
-        
-        wetGain.gain.value = effect.wetDryMix;
-        dryGain.gain.value = 1 - effect.wetDryMix;
-        
-        // Connect the signal path
-        currentNode.connect(convolver);
-        convolver.connect(wetGain);
-        currentNode.connect(dryGain);
-        
-        wetGain.connect(compressor);
-        dryGain.connect(compressor);
-        
-        // Create filters for damping
-        const lowpass = ctx.createBiquadFilter();
-        lowpass.type = 'lowpass';
-        lowpass.frequency.value = 20000 * (1 - effect.highDamping);
-        
-        const highpass = ctx.createBiquadFilter();
-        highpass.type = 'highpass';
-        highpass.frequency.value = 20 + (effect.lowDamping * 980);
-        
-        convolver.connect(lowpass);
-        lowpass.connect(highpass);
-        highpass.connect(wetGain);
-        
-        currentNode = wetGain;
-        break;
-      }
     }
   });
 
