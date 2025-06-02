@@ -46,8 +46,15 @@ export function buildToneGraph(
       case 'tremolo': {
         const tremolo = ctx.createGain();
         const lfo = ctx.createOscillator();
+        lfo.type = 'sine';
         lfo.frequency.value = effect.value;
-        lfo.connect(tremolo.gain);
+        
+        // Scale LFO output for tremolo depth
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.value = 0.5; // Depth control
+        
+        lfo.connect(lfoGain);
+        lfoGain.connect(tremolo.gain);
         currentNode.connect(tremolo);
         tremolo.connect(compressor);
         lfo.start();
@@ -59,7 +66,13 @@ export function buildToneGraph(
         const panner = ctx.createStereoPanner();
         const lfo = ctx.createOscillator();
         lfo.frequency.value = effect.value;
-        lfo.connect(panner.pan);
+        
+        // Scale LFO for panning range
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.value = 1.0;
+        
+        lfo.connect(lfoGain);
+        lfoGain.connect(panner.pan);
         currentNode.connect(panner);
         panner.connect(compressor);
         lfo.start();
@@ -68,18 +81,39 @@ export function buildToneGraph(
       }
 
       case 'phaser': {
-        const filter = ctx.createBiquadFilter();
-        filter.type = 'allpass';
-        filter.frequency.value = 1000;
-        filter.Q.value = 10;
+        const filters: BiquadFilterNode[] = [];
+        const numStages = 4;
+        
+        // Create multiple allpass filters for phasing
+        for (let i = 0; i < numStages; i++) {
+          const filter = ctx.createBiquadFilter();
+          filter.type = 'allpass';
+          filter.frequency.value = 1000 + i * 500;
+          filter.Q.value = 5;
+          filters.push(filter);
+        }
         
         const lfo = ctx.createOscillator();
         lfo.frequency.value = effect.value;
-        lfo.connect(filter.frequency);
-        currentNode.connect(filter);
-        filter.connect(compressor);
+        
+        // Connect filters in series
+        filters.reduce((prev, curr) => {
+          prev.connect(curr);
+          return curr;
+        });
+        
+        // Modulate filter frequencies
+        filters.forEach(filter => {
+          const lfoGain = ctx.createGain();
+          lfoGain.gain.value = 1500;
+          lfo.connect(lfoGain);
+          lfoGain.connect(filter.frequency);
+        });
+        
+        currentNode.connect(filters[0]);
+        filters[filters.length - 1].connect(compressor);
         lfo.start();
-        currentNode = filter;
+        currentNode = filters[filters.length - 1];
         break;
       }
 
@@ -87,7 +121,13 @@ export function buildToneGraph(
         const modGain = ctx.createGain();
         const lfo = ctx.createOscillator();
         lfo.frequency.value = effect.value;
-        lfo.connect(modGain.gain);
+        
+        // Scale LFO for AM depth
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.value = 0.8;
+        
+        lfo.connect(lfoGain);
+        lfoGain.connect(modGain.gain);
         currentNode.connect(modGain);
         modGain.connect(compressor);
         lfo.start();
@@ -99,7 +139,13 @@ export function buildToneGraph(
         const panner = ctx.createStereoPanner();
         const lfo = ctx.createOscillator();
         lfo.frequency.value = effect.value;
-        lfo.connect(panner.pan);
+        
+        // Full range panning
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.value = 1.0;
+        
+        lfo.connect(lfoGain);
+        lfoGain.connect(panner.pan);
         currentNode.connect(panner);
         panner.connect(compressor);
         lfo.start();
@@ -112,7 +158,13 @@ export function buildToneGraph(
         const lfo = ctx.createOscillator();
         lfo.type = 'square';
         lfo.frequency.value = effect.value;
-        lfo.connect(pulseGain.gain);
+        
+        // Sharp on/off for isochronic effect
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.value = 0.95;
+        
+        lfo.connect(lfoGain);
+        lfoGain.connect(pulseGain.gain);
         currentNode.connect(pulseGain);
         pulseGain.connect(compressor);
         lfo.start();
@@ -135,12 +187,15 @@ export function buildToneGraph(
         for (let channel = 0; channel < 2; channel++) {
           const channelData = impulse.getChannelData(channel);
           for (let i = 0; i < length; i++) {
-            // Exponential decay with random reflections
-            channelData[i] = (Math.random() * 2 - 1) * Math.exp(decay * i / sampleRate);
+            // Early reflections
+            const earlyReflection = i < 0.1 * length ? 0.7 : 0;
+            // Main reverb tail with exponential decay
+            const reverbTail = Math.exp(decay * i / sampleRate);
+            // Combine with random reflections
+            channelData[i] = (Math.random() * 2 - 1) * (earlyReflection + reverbTail) * 0.5;
           }
         }
         
-        // Set the impulse response
         convolver.buffer = impulse;
         
         // Create wet/dry mix
@@ -148,8 +203,8 @@ export function buildToneGraph(
         const dryGain = ctx.createGain();
         
         // Calculate wet/dry mix (more wet for larger room sizes)
-        const wetLevel = Math.min(0.8, effect.value / 100);
-        const dryLevel = Math.max(0.2, 1 - wetLevel);
+        const wetLevel = 0.2 + (effect.value / 100) * 0.6; // 20% to 80% wet
+        const dryLevel = 1 - wetLevel;
         
         wetGain.gain.value = wetLevel;
         dryGain.gain.value = dryLevel;
