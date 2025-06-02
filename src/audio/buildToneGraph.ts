@@ -121,31 +121,40 @@ export function buildToneGraph(
       }
 
       case 'reverb': {
+        // Create convolver node for reverb
         const convolver = ctx.createConvolver();
-        const reverbTime = effect.value / 33.33; // Convert 0-100 to 0-3 seconds
+        
+        // Calculate reverb time based on slider value (0-100 maps to 0.5-3 seconds)
+        const reverbTime = 0.5 + (effect.value / 100) * 2.5;
         const sampleRate = ctx.sampleRate;
-        const length = sampleRate * reverbTime;
-        const impulse = ctx.createBuffer(2, length, sampleRate);
+        const length = Math.floor(sampleRate * reverbTime);
+        const decay = -6.908 / reverbTime; // Natural log of 1/1000 for -60dB decay
         
         // Generate impulse response
+        const impulse = ctx.createBuffer(2, length, sampleRate);
         for (let channel = 0; channel < 2; channel++) {
           const channelData = impulse.getChannelData(channel);
           for (let i = 0; i < length; i++) {
-            channelData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (sampleRate * reverbTime));
+            // Exponential decay with random reflections
+            channelData[i] = (Math.random() * 2 - 1) * Math.exp(decay * i / sampleRate);
           }
         }
         
+        // Set the impulse response
         convolver.buffer = impulse;
         
         // Create wet/dry mix
-        const dryGain = ctx.createGain();
         const wetGain = ctx.createGain();
+        const dryGain = ctx.createGain();
+        
+        // Calculate wet/dry mix (more wet for larger room sizes)
         const wetLevel = Math.min(0.8, effect.value / 100);
         const dryLevel = Math.max(0.2, 1 - wetLevel);
         
         wetGain.gain.value = wetLevel;
         dryGain.gain.value = dryLevel;
         
+        // Connect the signal path
         currentNode.connect(dryGain);
         currentNode.connect(convolver);
         convolver.connect(wetGain);
