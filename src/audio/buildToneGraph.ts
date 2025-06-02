@@ -119,6 +119,40 @@ export function buildToneGraph(
         currentNode = pulseGain;
         break;
       }
+
+      case 'flanger': {
+        const delay = ctx.createDelay();
+        delay.delayTime.value = 0.005;
+        
+        const lfo = ctx.createOscillator();
+        lfo.frequency.value = effect.value;
+        
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.value = 0.0015;
+        
+        const wetGain = ctx.createGain();
+        wetGain.gain.value = 0.5;
+        
+        const dryGain = ctx.createGain();
+        dryGain.gain.value = 0.5;
+        
+        // LFO -> Delay modulation
+        lfo.connect(lfoGain);
+        lfoGain.connect(delay.delayTime);
+        
+        // Wet path
+        currentNode.connect(delay);
+        delay.connect(wetGain);
+        wetGain.connect(compressor);
+        
+        // Dry path
+        currentNode.connect(dryGain);
+        dryGain.connect(compressor);
+        
+        lfo.start();
+        currentNode = delay;
+        break;
+      }
     }
   });
 

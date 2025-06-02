@@ -22,7 +22,8 @@ const AudioFXPanel: React.FC = () => {
     'tremolo',
     'noise',
     'phaser',
-    'reverb'
+    'reverb',
+    'flanger'
   ];
 
   const specialEffects = [
