@@ -39,6 +39,7 @@ serve(async (req) => {
     method: req.method,
     url: req.url,
     headers: Object.fromEntries(req.headers.entries())
+      .filter(([key]) => !['authorization', 'x-client-info', 'apikey'].includes(key.toLowerCase()))
   });
 
   if (req.method === 'OPTIONS') {
@@ -48,9 +49,8 @@ serve(async (req) => {
   try {
     const body = await req.json();
     console.log('Request payload:', {
-      ...body,
       type: body.type,
-      recipientEmail: body.email,
+      recipientEmail: body.email ? '***@***.***' : undefined,
       hasData: !!body.data
     });
 
@@ -71,7 +71,7 @@ serve(async (req) => {
     console.log('Authorization check:', {
       hasHeader: !!authHeader,
       headerPrefix: authHeader?.substring(0, 7),
-      tokenLength: authHeader?.replace('Bearer ', '')?.length
+      tokenLength: authHeader ? '***' : undefined
     });
 
     if (!authHeader) {
@@ -94,7 +94,7 @@ serve(async (req) => {
       console.log('User authentication:', {
         success: !!user,
         error: authError?.message,
-        userId: user?.id
+        userId: user?.id ? '***' : undefined
       });
 
       if (authError || !user) {
@@ -169,14 +169,14 @@ serve(async (req) => {
 
     console.log('Postmark request preparation:', {
       templateAlias,
-      recipientEmail: email,
+      recipientEmail: '***@***.***',
       senderEmail: fromEmail,
       hasTemplateModel: !!templateModel
     });
 
     const postmarkHeaders = {
       'Content-Type': 'application/json',
-      'X-Postmark-Server-Token': apiKey.trim(),
+      'X-Postmark-Server-Token': '***',
       'Accept': 'application/json'
     };
 
@@ -184,12 +184,16 @@ serve(async (req) => {
       contentType: postmarkHeaders['Content-Type'],
       accept: postmarkHeaders['Accept'],
       hasToken: !!postmarkHeaders['X-Postmark-Server-Token'],
-      tokenLength: postmarkHeaders['X-Postmark-Server-Token'].length
+      tokenLength: '***'
     });
 
     const postmarkResponse = await fetch('https://api.postmarkapp.com/email/withTemplate', {
       method: 'POST',
-      headers: postmarkHeaders,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Postmark-Server-Token': apiKey.trim(),
+        'Accept': 'application/json'
+      },
       body: JSON.stringify({
         From: fromEmail,
         To: email,

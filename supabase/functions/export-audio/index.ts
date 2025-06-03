@@ -11,12 +11,60 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 );
 
+// Rate limiting configuration
+const RATE_LIMIT = 10; // requests per window
+const WINDOW_SIZE = 3600; // 1 hour in seconds
+const MAX_DURATION = 43200; // 12 hours in seconds
+
+// In-memory store for rate limiting
+const rateLimitStore = new Map<string, number[]>();
+
+function getRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const userRequests = rateLimitStore.get(userId) || [];
+  
+  // Clean up old requests
+  const validRequests = userRequests.filter(timestamp => 
+    now - timestamp < WINDOW_SIZE * 1000
+  );
+  
+  if (validRequests.length >= RATE_LIMIT) {
+    return false;
+  }
+  
+  validRequests.push(now);
+  rateLimitStore.set(userId, validRequests);
+  return true;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
+    // Validate auth token
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('Authentication required');
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader);
+    if (authError || !user) {
+      throw new Error('Authentication failed');
+    }
+
+    // Check rate limit
+    if (!getRateLimit(user.id)) {
+      return new Response(
+        JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+        {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
     const formData = await req.formData();
     const totalDuration = parseInt(formData.get('totalDuration') as string);
     const channels = JSON.parse(formData.get('channels') as string);
@@ -24,6 +72,17 @@ serve(async (req) => {
     
     if (!totalDuration || !channels || !effects) {
       throw new Error('Missing required parameters');
+    }
+
+    // Check duration limit
+    if (totalDuration > MAX_DURATION) {
+      return new Response(
+        JSON.stringify({ error: 'Duration exceeds maximum limit of 12 hours' }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     // Process audio in chunks
