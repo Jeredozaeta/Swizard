@@ -4,7 +4,6 @@ import { Activity, ArrowLeft, Cpu, Waves, Database, Shield, AlertTriangle, Zap, 
 import { useAudio } from '../context/AudioContext';
 import { useAuth } from '../context/AuthContext';
 import FPSCounter from '../components/FPSCounter';
-import { getAnalyticsStatus } from '../utils/analytics';
 
 const Diagnostic: React.FC = () => {
   const { state, audioContext } = useAudio();
@@ -13,7 +12,6 @@ const Diagnostic: React.FC = () => {
   const [subscription, setSubscription] = useState<any>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
-  const [analyticsStatus, setAnalyticsStatus] = useState(getAnalyticsStatus());
 
   useEffect(() => {
     const loadSubscriptionData = async () => {
@@ -31,17 +29,8 @@ const Diagnostic: React.FC = () => {
       }
     };
 
-    // Update analytics status periodically
-    const analyticsInterval = setInterval(() => {
-      setAnalyticsStatus(getAnalyticsStatus());
-    }, 5000);
-
     loadSubscriptionData();
     checkTwoFactor();
-
-    return () => {
-      clearInterval(analyticsInterval);
-    };
   }, [supabase]);
 
   const getContextStateColor = (state: string) => {
@@ -207,39 +196,16 @@ const Diagnostic: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-3">
                 <h3 className="text-sm font-medium text-purple-300">Sentry</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${analyticsStatus.sentry.enabled ? 'bg-green-500' : 'bg-gray-500'}`}></div>
-                    <span className="text-purple-200/70">
-                      {analyticsStatus.sentry.enabled ? 'Connected' : 'Not Configured'}
-                    </span>
-                  </div>
-                  {analyticsStatus.sentry.enabled && (
-                    <div className="text-xs text-purple-200/50 font-mono">
-                      Last Event: {analyticsStatus.sentry.lastEventId || 'None'}
-                    </div>
-                  )}
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-gray-500"></div>
+                  <span className="text-purple-200/70">Not Configured</span>
                 </div>
               </div>
               <div className="space-y-3">
                 <h3 className="text-sm font-medium text-purple-300">PostHog</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${analyticsStatus.posthog.enabled ? 'bg-green-500' : 'bg-gray-500'}`}></div>
-                    <span className="text-purple-200/70">
-                      {analyticsStatus.posthog.enabled ? 'Connected' : 'Not Configured'}
-                    </span>
-                  </div>
-                  {analyticsStatus.posthog.enabled && (
-                    <>
-                      <div className="text-xs text-purple-200/50 font-mono">
-                        Session: {analyticsStatus.posthog.sessionId}
-                      </div>
-                      <div className="text-xs text-purple-200/50 font-mono">
-                        User: {analyticsStatus.posthog.distinctId}
-                      </div>
-                    </>
-                  )}
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-gray-500"></div>
+                  <span className="text-purple-200/70">Not Configured</span>
                 </div>
               </div>
             </div>
