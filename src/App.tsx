@@ -28,7 +28,7 @@ const App: React.FC = () => {
                 </div>
                 <div>
                   <Routes>
-                    <Route path="/" element={<Navigate to="/app\" replace />} />
+                    <Route path="/" element={<Navigate to="/app" replace />} />
                     <Route path="/app" element={<MainContent />} />
                     <Route path="/app/preset/:id" element={<MainContent />} />
                     <Route path="/success" element={<Success />} />
@@ -38,7 +38,7 @@ const App: React.FC = () => {
                     <Route path="/licensing" element={<Licensing />} />
                     <Route path="/science" element={<Science />} />
                     <Route path="/diagnostic" element={<Diagnostic />} />
-                    <Route path="*" element={<Navigate to="/app\" replace />} />
+                    <Route path="*" element={<Navigate to="/app" replace />} />
                   </Routes>
                 </div>
               </div>
