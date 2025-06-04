@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { Crown, Sparkles, Save, Download, Image, Video, X, LampDesk as Desktop, WifiOff } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import { slicedExport } from '../audio/slicedExport';
+import { sanitizePresetName, validateDuration } from '../utils/validation';
 
 interface ActionButtonsProps {
   onShowPricing: () => void;
@@ -27,24 +28,17 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
 
   useEffect(() => {
     if (isElectron) {
-      // Initial online status check
       window.electron.getOnlineStatus().then(setIsOnline);
-
-      // Listen for online status changes
       const cleanup = window.electron.onOnlineStatusChanged((status) => {
         setIsOnline(status);
       });
-
       return cleanup;
     } else {
-      // Browser online/offline detection
       const handleOnline = () => setIsOnline(true);
       const handleOffline = () => setIsOnline(false);
-
       window.addEventListener('online', handleOnline);
       window.addEventListener('offline', handleOffline);
       setIsOnline(navigator.onLine);
-
       return () => {
         window.removeEventListener('online', handleOnline);
         window.removeEventListener('offline', handleOffline);
@@ -71,7 +65,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       const name = prompt('Enter a name for this preset:');
       if (!name) return;
 
-      const presetId = await sharePreset(name);
+      const sanitizedName = sanitizePresetName(name);
+      const presetId = await sharePreset(sanitizedName);
       const url = `${window.location.origin}/app/preset/${presetId}`;
       
       await navigator.clipboard.writeText(url);
@@ -105,6 +100,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Validate file type
     if (selectedBackground.type === 'image' && !file.type.startsWith('image/')) {
       toast.error('Please select an image file (JPG or PNG)');
       return;
@@ -115,12 +111,19 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       return;
     }
 
+    // Validate file size (max 100MB)
+    if (file.size > 100 * 1024 * 1024) {
+      toast.error('File size must be under 100MB');
+      return;
+    }
+
     const preview = URL.createObjectURL(file);
     setSelectedBackground({ ...selectedBackground, file, preview });
   };
 
   const handleElectronExport = async () => {
     try {
+      const validatedDuration = validateDuration(selectedDuration);
       const isVideo = selectedBackground.type !== 'black';
       const defaultPath = `swizard-${Date.now()}.${isVideo ? 'mp4' : 'wav'}`;
       const filePath = await window.electron.showSaveDialog({ defaultPath });
@@ -128,7 +131,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       if (!filePath) return;
 
       const { available } = await window.electron.checkDiskSpace(filePath);
-      const requiredSpace = selectedDuration * (isVideo ? 384000 : 192000);
+      const requiredSpace = validatedDuration * (isVideo ? 384000 : 192000);
 
       if (available < requiredSpace) {
         toast.error(`Not enough disk space. Need ${Math.ceil(requiredSpace / 1024 / 1024)} MB free.`);
@@ -140,11 +143,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
 
       const chunks: ArrayBuffer[] = [];
       const chunkDuration = 600;
-      const numChunks = Math.ceil(selectedDuration / chunkDuration);
+      const numChunks = Math.ceil(validatedDuration / chunkDuration);
 
       for (let i = 0; i < numChunks; i++) {
         const start = i * chunkDuration;
-        const duration = Math.min(chunkDuration, selectedDuration - start);
+        const duration = Math.min(chunkDuration, validatedDuration - start);
 
         const result = await slicedExport({
           durationSeconds: duration,
@@ -190,34 +193,36 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   };
 
   const handleExport = async () => {
-    if (selectedDuration < 30) {
-      toast.error('Please select a duration of at least 30 seconds', {
-        autoClose: 5000,
-        pauseOnHover: true,
-        closeButton: true
-      });
-      return;
-    }
-
-    if (exporting) {
-      toast.info('Export in progress...', {
-        autoClose: 3000,
-        pauseOnHover: true,
-        closeButton: true
-      });
-      return;
-    }
-
-    if (isElectron) {
-      setShowBackgroundPicker(true);
-      return;
-    }
-
     try {
+      const validatedDuration = validateDuration(selectedDuration);
+
+      if (validatedDuration < 30) {
+        toast.error('Please select a duration of at least 30 seconds', {
+          autoClose: 5000,
+          pauseOnHover: true,
+          closeButton: true
+        });
+        return;
+      }
+
+      if (exporting) {
+        toast.info('Export in progress...', {
+          autoClose: 3000,
+          pauseOnHover: true,
+          closeButton: true
+        });
+        return;
+      }
+
+      if (isElectron) {
+        setShowBackgroundPicker(true);
+        return;
+      }
+
       setExporting(true);
       setProgress(0);
 
-      if (selectedDuration > 3600) {
+      if (validatedDuration > 3600) {
         if (!isOnline) {
           toast.error('Server export is not available while offline. Please use the desktop app for long exports.');
           return;
@@ -243,10 +248,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         setProgress(0);
       }, 45000000);
 
-      if (selectedDuration > 3600 && isOnline) {
+      if (validatedDuration > 3600 && isOnline) {
         setProgress(10);
         const formData = new FormData();
-        formData.append('totalDuration', selectedDuration.toString());
+        formData.append('totalDuration', validatedDuration.toString());
         formData.append('channels', JSON.stringify(state.channels));
         formData.append('effects', JSON.stringify(state.effects));
 
@@ -276,7 +281,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         setProgress(100);
       } else {
         const result = await slicedExport({
-          durationSeconds: selectedDuration,
+          durationSeconds: validatedDuration,
           frequencies: state.channels,
           effects: state.effects,
           onProgress: (value) => {
@@ -519,4 +524,4 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   );
 };
 
-export default ActionButtons
+export default ActionButtons;
