@@ -204,8 +204,10 @@ const Diagnostic: React.FC = () => {
               <div className="space-y-3">
                 <h3 className="text-sm font-medium text-purple-300">PostHog</h3>
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-gray-500"></div>
-                  <span className="text-purple-200/70">Not Configured</span>
+                  <div className={`w-2 h-2 rounded-full ${isPostHogLoaded() ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                  <span className="text-purple-200/70">
+                    {isPostHogLoaded() ? 'Connected' : 'Not Connected'}
+                  </span>
                 </div>
               </div>
             </div>
