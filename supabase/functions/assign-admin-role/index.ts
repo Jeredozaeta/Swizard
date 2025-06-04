@@ -20,22 +20,39 @@ serve(async (req) => {
     const { userId } = await req.json();
 
     if (!userId) {
-      throw new Error('User ID is required');
+      return new Response(
+        JSON.stringify({ error: 'Invalid request parameters' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        }
+      );
     }
 
-    // Validate auth token
     const authHeader = req.headers.get('Authorization')?.replace('Bearer ', '');
     if (!authHeader) {
-      throw new Error('Authentication required');
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401,
+        }
+      );
     }
 
     const { data: { user }, error: userError } = await supabase.auth.getUser(authHeader);
     
     if (userError || !user) {
-      throw new Error('Authentication failed');
+      console.error('Authentication error:', userError);
+      return new Response(
+        JSON.stringify({ error: 'Authentication failed' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401,
+        }
+      );
     }
 
-    // Assign admin role
     const { data, error } = await supabase
       .from('user_roles')
       .upsert({
@@ -46,8 +63,14 @@ serve(async (req) => {
       .single();
 
     if (error) {
-      console.error('Error assigning admin role:', error);
-      throw new Error('Failed to assign admin role');
+      console.error('Database error:', error);
+      return new Response(
+        JSON.stringify({ error: 'Failed to update user role' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        }
+      );
     }
 
     return new Response(
@@ -58,16 +81,13 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Assign admin role error:', error);
+    console.error('Internal server error:', error);
     
     return new Response(
-      JSON.stringify({ 
-        error: error.message || 'Failed to assign admin role',
-        code: error.message.includes('Authentication') ? 401 : 400
-      }),
+      JSON.stringify({ error: 'An unexpected error occurred' }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: error.message.includes('Authentication') ? 401 : 400,
+        status: 500,
       }
     );
   }

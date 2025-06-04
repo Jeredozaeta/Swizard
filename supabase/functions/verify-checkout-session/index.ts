@@ -25,29 +25,51 @@ serve(async (req) => {
     const { sessionId } = await req.json();
 
     if (!sessionId) {
-      throw new Error('Session ID is required');
+      return new Response(
+        JSON.stringify({ error: 'Invalid request parameters' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        }
+      );
     }
 
-    // Validate auth token
     const authHeader = req.headers.get('Authorization')?.replace('Bearer ', '');
     if (!authHeader) {
-      throw new Error('Authentication required');
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401,
+        }
+      );
     }
 
     const { data: { user }, error: userError } = await supabase.auth.getUser(authHeader);
     
     if (userError || !user) {
-      throw new Error('Authentication failed');
+      console.error('Authentication error:', userError);
+      return new Response(
+        JSON.stringify({ error: 'Authentication failed' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401,
+        }
+      );
     }
 
-    // Retrieve and verify the checkout session
     const session = await stripe.checkout.sessions.retrieve(sessionId);
     
     if (!session || session.payment_status !== 'paid') {
-      throw new Error('Invalid or unpaid session');
+      return new Response(
+        JSON.stringify({ error: 'Invalid checkout session' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        }
+      );
     }
 
-    // Update subscription status if needed
     if (session.subscription) {
       const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
       
@@ -63,7 +85,14 @@ serve(async (req) => {
         .eq('subscription_id', subscription.id);
 
       if (updateError) {
-        console.error('Error updating subscription:', updateError);
+        console.error('Database update error:', updateError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to update subscription status' }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500,
+          }
+        );
       }
     }
 
@@ -75,16 +104,13 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Verify checkout session error:', error);
+    console.error('Verification error:', error);
     
     return new Response(
-      JSON.stringify({ 
-        error: error.message || 'Failed to verify checkout session',
-        code: error.message.includes('Authentication') ? 401 : 400
-      }),
+      JSON.stringify({ error: 'Failed to verify checkout session' }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: error.message.includes('Authentication') ? 401 : 400,
+        status: 500,
       }
     );
   }

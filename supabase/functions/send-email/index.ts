@@ -7,26 +7,10 @@ const corsHeaders = {
 };
 
 const apiKey = Deno.env.get('POSTMARK_API_TOKEN');
-console.log('Environment check - Postmark token:', {
-  exists: !!apiKey,
-  length: apiKey?.length,
-  firstFourChars: apiKey?.substring(0, 4),
-  isValidFormat: apiKey?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/) !== null
-});
-
 const fromEmail = Deno.env.get('FROM_EMAIL');
-console.log('Environment check - From email:', {
-  exists: !!fromEmail,
-  value: fromEmail,
-  isValidEmail: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fromEmail || '')
-});
 
-if (!apiKey) {
-  throw new Error('POSTMARK_API_TOKEN is not set');
-}
-
-if (!fromEmail) {
-  throw new Error('FROM_EMAIL is not set');
+if (!apiKey || !fromEmail) {
+  throw new Error('Missing required environment variables');
 }
 
 const supabase = createClient(
@@ -35,31 +19,17 @@ const supabase = createClient(
 );
 
 serve(async (req) => {
-  console.log('Request details:', {
-    method: req.method,
-    url: req.url,
-    headers: Object.fromEntries(req.headers.entries())
-      .filter(([key]) => !['authorization', 'x-client-info', 'apikey'].includes(key.toLowerCase()))
-  });
-
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
     const body = await req.json();
-    console.log('Request payload:', {
-      type: body.type,
-      recipientEmail: body.email ? '***@***.***' : undefined,
-      hasData: !!body.data
-    });
-
     const { email, type, data } = body;
 
     if (!email || !type) {
-      console.error('Validation failed:', { email: !!email, type: !!type });
       return new Response(
-        JSON.stringify({ error: 'Missing required fields' }),
+        JSON.stringify({ error: 'Invalid request parameters' }),
         { 
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -68,15 +38,9 @@ serve(async (req) => {
     }
 
     const authHeader = req.headers.get('Authorization');
-    console.log('Authorization check:', {
-      hasHeader: !!authHeader,
-      headerPrefix: authHeader?.substring(0, 7),
-      tokenLength: authHeader ? '***' : undefined
-    });
-
     if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: 'Authorization required' }),
+        JSON.stringify({ error: 'Authentication required' }),
         { 
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -86,18 +50,12 @@ serve(async (req) => {
 
     const token = authHeader.replace('Bearer ', '');
     const isServiceRole = token === Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    console.log('Auth validation:', { isServiceRole });
 
     if (!isServiceRole) {
       const { data: { user }, error: authError } = await supabase.auth.getUser(token);
       
-      console.log('User authentication:', {
-        success: !!user,
-        error: authError?.message,
-        userId: user?.id ? '***' : undefined
-      });
-
       if (authError || !user) {
+        console.error('Authentication error:', authError);
         return new Response(
           JSON.stringify({ error: 'Authentication failed' }),
           { 
@@ -110,8 +68,6 @@ serve(async (req) => {
 
     let templateAlias;
     let subject;
-
-    console.log('Template selection:', { type });
 
     switch (type) {
       case 'welcome':
@@ -151,9 +107,8 @@ serve(async (req) => {
         subject = 'Subscription Canceled';
         break;
       default:
-        console.error('Invalid template type:', type);
         return new Response(
-          JSON.stringify({ error: `Unknown email type: ${type}` }),
+          JSON.stringify({ error: 'Invalid email type' }),
           { 
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -166,26 +121,6 @@ serve(async (req) => {
       name: data?.name || 'User',
       ...data
     };
-
-    console.log('Postmark request preparation:', {
-      templateAlias,
-      recipientEmail: '***@***.***',
-      senderEmail: fromEmail,
-      hasTemplateModel: !!templateModel
-    });
-
-    const postmarkHeaders = {
-      'Content-Type': 'application/json',
-      'X-Postmark-Server-Token': '***',
-      'Accept': 'application/json'
-    };
-
-    console.log('Postmark request headers:', {
-      contentType: postmarkHeaders['Content-Type'],
-      accept: postmarkHeaders['Accept'],
-      hasToken: !!postmarkHeaders['X-Postmark-Server-Token'],
-      tokenLength: '***'
-    });
 
     const postmarkResponse = await fetch('https://api.postmarkapp.com/email/withTemplate', {
       method: 'POST',
@@ -202,33 +137,19 @@ serve(async (req) => {
       })
     });
 
-    console.log('Postmark response details:', {
-      status: postmarkResponse.status,
-      statusText: postmarkResponse.statusText,
-      headers: Object.fromEntries(postmarkResponse.headers.entries())
-    });
-
     const postmarkData = await postmarkResponse.json();
-    console.log('Postmark response data:', {
-      success: postmarkResponse.ok,
-      data: postmarkData
-    });
 
     if (!postmarkResponse.ok) {
-      console.error('Postmark error:', {
-        status: postmarkResponse.status,
-        error: postmarkData
-      });
+      console.error('Postmark error:', postmarkData);
       return new Response(
-        JSON.stringify({ error: `Postmark error: ${postmarkData.Message || 'Unknown error'}` }),
+        JSON.stringify({ error: 'Failed to send email' }),
         { 
-          status: postmarkResponse.status,
+          status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }
 
-    console.log('Database logging attempt');
     const { error: logError } = await supabase
       .from('email_logs')
       .insert({
@@ -244,8 +165,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: 'Email sent successfully',
-        messageId: postmarkData.MessageID
+        message: 'Email sent successfully'
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -253,17 +173,10 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Function error:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
-    });
+    console.error('Email sending error:', error);
     
     return new Response(
-      JSON.stringify({ 
-        error: 'Failed to send email',
-        details: error.message
-      }),
+      JSON.stringify({ error: 'Failed to send email' }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500

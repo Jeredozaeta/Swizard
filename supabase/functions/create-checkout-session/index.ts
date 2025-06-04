@@ -20,7 +20,13 @@ serve(async (req) => {
     const { priceId } = await req.json();
     
     if (!priceId) {
-      throw new Error('Price ID is required');
+      return new Response(
+        JSON.stringify({ error: 'Invalid request parameters' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        }
+      );
     }
 
     const origin = req.headers.get('origin') || 'https://swizard.app';
@@ -68,13 +74,10 @@ serve(async (req) => {
     console.error('Checkout session error:', error);
     
     return new Response(
-      JSON.stringify({ 
-        error: error.message || 'Failed to create checkout session',
-        code: error.statusCode || 400
-      }),
+      JSON.stringify({ error: 'Failed to create checkout session' }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: error.statusCode || 400,
+        status: 500,
       }
     );
   }
