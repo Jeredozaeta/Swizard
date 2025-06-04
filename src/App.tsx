@@ -8,6 +8,7 @@ import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import Licensing from './pages/Licensing';
 import Science from './pages/Science';
+import Diagnostic from './pages/Diagnostic';
 import ErrorBoundary from './components/ErrorBoundary';
 import LegalDisclaimer from './components/LegalDisclaimer';
 import { AudioProvider } from './context/AudioContext';
@@ -36,6 +37,7 @@ const App: React.FC = () => {
                     <Route path="/privacy" element={<Privacy />} />
                     <Route path="/licensing" element={<Licensing />} />
                     <Route path="/science" element={<Science />} />
+                    <Route path="/diagnostic" element={<Diagnostic />} />
                     <Route path="*" element={<Navigate to="/app" replace />} />
                   </Routes>
                 </div>
