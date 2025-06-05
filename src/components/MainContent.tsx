@@ -35,6 +35,31 @@ const MainContent: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
+    const checkAdminRole = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+
+      const { data: role } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', session.user.id)
+        .single();
+
+      setIsAdmin(role?.role === 'admin');
+    };
+
+    checkAdminRole();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      checkAdminRole();
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  useEffect(() => {
     const loadPresetData = async () => {
       // Handle old-style config parameter
       const config = searchParams.get('config');
@@ -75,31 +100,6 @@ const MainContent: React.FC = () => {
 
     loadPresetData();
   }, [id, searchParams, loadPreset]);
-
-  useEffect(() => {
-    const checkAdminRole = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
-
-      const { data: role } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', session.user.id)
-        .single();
-
-      setIsAdmin(role?.role === 'admin');
-    };
-
-    checkAdminRole();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      checkAdminRole();
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [supabase]);
 
   if (showEmailChecklist) {
     if (!isAdmin) {
