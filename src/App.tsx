@@ -14,8 +14,14 @@ import LegalDisclaimer from './components/LegalDisclaimer';
 import { AudioProvider } from './context/AudioContext';
 import { StripeProvider } from './context/StripeContext';
 import { AuthProvider } from './context/AuthContext';
+import { useEffect } from 'react';
+import { initPostHog } from './utils/analytics';
 
 const App: React.FC = () => {
+  useEffect(() => {
+    initPostHog();
+  }, []);
+
   return (
     <ErrorBoundary>
       <BrowserRouter>
@@ -28,7 +34,7 @@ const App: React.FC = () => {
                 </div>
                 <div>
                   <Routes>
-                    <Route path="/" element={<Navigate to="/app\" replace />} />
+                    <Route path="/" element={<Navigate to="/app" replace />} />
                     <Route path="/app" element={<MainContent />} />
                     <Route path="/app/preset/:id" element={<MainContent />} />
                     <Route path="/success" element={<Success />} />
@@ -38,7 +44,7 @@ const App: React.FC = () => {
                     <Route path="/licensing" element={<Licensing />} />
                     <Route path="/science" element={<Science />} />
                     <Route path="/diagnostic" element={<Diagnostic />} />
-                    <Route path="*" element={<Navigate to="/app\" replace />} />
+                    <Route path="*" element={<Navigate to="/app" replace />} />
                   </Routes>
                 </div>
               </div>
