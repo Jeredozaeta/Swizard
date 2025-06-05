@@ -110,14 +110,14 @@ const MainContent: React.FC = () => {
 
   if (showEmailPanel) {
     if (!isAdmin) {
-      return <Navigate to="/\" replace />;
+      return <Navigate to="/" replace />;
     }
     return <EmailTestPanel onExit={() => setShowEmailPanel(false)} />;
   }
 
   if (showVerifyAudio) {
     if (!isAdmin) {
-      return <Navigate to="/\" replace />;
+      return <Navigate to="/" replace />;
     }
     return <VerifyAudio onExit={() => setShowVerifyAudio(false)} />;
   }
