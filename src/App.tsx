@@ -14,14 +14,8 @@ import LegalDisclaimer from './components/LegalDisclaimer';
 import { AudioProvider } from './context/AudioContext';
 import { StripeProvider } from './context/StripeContext';
 import { AuthProvider } from './context/AuthContext';
-import { useEffect } from 'react';
-import { initPostHog } from './utils/analytics';
 
 const App: React.FC = () => {
-  useEffect(() => {
-    initPostHog();
-  }, []);
-
   return (
     <ErrorBoundary>
       <BrowserRouter>
