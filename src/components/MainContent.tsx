@@ -148,18 +148,20 @@ const MainContent: React.FC = () => {
         </main>
       </div>
       <ToastContainer position="bottom-right" theme="dark" />
-      <>
-        <DevModeToggle isDevMode={isDevMode} onToggle={() => setIsDevMode(!isDevMode)} />
-        {isDevMode && (
-          <DevModePanel 
-            onShowEmailPanel={() => {}}
-            onShowEmailChecklist={() => {}}
-            onShowVerifyAudio={() => {}}
-            showWaveform={showWaveform}
-            onToggleWaveform={() => setShowWaveform(!showWaveform)}
-          />
-        )}
-      </>
+      {isAdmin && (
+        <>
+          <DevModeToggle isDevMode={isDevMode} onToggle={() => setIsDevMode(!isDevMode)} />
+          {isDevMode && (
+            <DevModePanel 
+              onShowEmailPanel={() => {}}
+              onShowEmailChecklist={() => {}}
+              onShowVerifyAudio={() => {}}
+              showWaveform={showWaveform}
+              onToggleWaveform={() => setShowWaveform(!showWaveform)}
+            />
+          )}
+        </>
+      )}
     </div>
   );
 };
