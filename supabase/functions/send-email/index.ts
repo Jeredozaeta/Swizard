@@ -72,7 +72,7 @@ serve(async (req) => {
     switch (type) {
       case 'welcome':
         templateAlias = 'welcome';
-        subject = 'Welcome to Real Sound Wizard!';
+        subject = 'Welcome to Swizard!';
         break;
       case 'verify_prompt':
         templateAlias = 'verify_prompt';
@@ -117,7 +117,7 @@ serve(async (req) => {
     }
 
     const templateModel = {
-      product_name: 'Real Sound Wizard',
+      product_name: 'Swizard',
       name: data?.name || 'User',
       ...data
     };
