@@ -125,6 +125,15 @@
   animation: glow-border 2s ease-in-out infinite;
 }
 
+@keyframes locked-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+
+.locked-pulse {
+  animation: locked-pulse 2s ease-in-out infinite;
+}
+
 body {
   font-family: 'Inter', sans-serif;
   @apply bg-gradient-to-br from-[#030014] via-[#1a0b2e] to-[#0f0720] text-white min-h-screen;
@@ -139,6 +148,9 @@ body {
     animation: none;
   }
   .magical-text {
+    animation: none;
+  }
+  .locked-pulse {
     animation: none;
   }
 }
@@ -189,6 +201,50 @@ body {
 
 .animate-attention {
   animation: attention 2s ease-in-out infinite;
+}
+
+/* Locked element styles */
+.locked-element {
+  position: relative;
+  filter: blur(6px);
+  pointer-events: none;
+  user-select: none;
+}
+
+.locked-element::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: inherit;
+  z-index: 1;
+}
+
+.locked-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.locked-overlay:hover {
+  animation: locked-pulse 1.5s ease-in-out infinite;
+}
+
+.locked-icon {
+  color: #8b5cf6;
+  filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.6));
 }
 
 /* Toggle Switch */

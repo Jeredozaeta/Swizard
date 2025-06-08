@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAudio } from '../context/AudioContext';
 import { AudioEffect } from '../types';
-import { Info } from 'lucide-react';
+import { Info, Lock } from 'lucide-react';
 
 interface EffectCardProps {
   effect: AudioEffect;
@@ -60,8 +60,18 @@ const EffectCard: React.FC<EffectCardProps> = ({ effect, isLocked = false }) => 
 
   return (
     <div className={`effect-card ${effect.enabled && !isLocked ? 'effect-active' : ''} ${getIntensityClass()} ${
-      isLocked ? 'opacity-60' : ''
-    }`}>
+      isLocked ? 'locked-element' : ''
+    } relative`}>
+      {isLocked && (
+        <div className="locked-overlay has-tooltip">
+          <Lock className="h-5 w-5 locked-icon" />
+          <span className="text-xs font-medium text-purple-300">Pro</span>
+          <div className="tooltip -translate-y-full -translate-x-1/2 left-1/2 top-0 w-32 text-xs">
+            Upgrade to unlock
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-4 md:mb-6">
         <div className="flex items-center gap-1">
           <h3 className="text-xs md:text-sm font-medium text-purple-200">{effect.name}</h3>
