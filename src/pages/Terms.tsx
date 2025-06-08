@@ -166,7 +166,7 @@ const Terms: React.FC = () => {
             <section>
               <h2 className="text-xl font-semibold text-violet-300 mb-4">11. Contact Information</h2>
               <p className="text-violet-200/90">
-                For any questions about these Terms, please contact us at hello@swizard.app
+                For any questions about these Terms, please contact us at hello@realsoundwizard.com
               </p>
             </section>
           </div>
