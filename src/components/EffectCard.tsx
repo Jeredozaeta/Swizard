@@ -14,11 +14,19 @@ const EffectCard: React.FC<EffectCardProps> = ({ effect }) => {
 
   const { updateEffect } = useAudio();
   
-  const handleToggle = () => {
+  const handleToggle = (e: React.MouseEvent) => {
+    // Check if this control is locked (free tier restriction)
+    if (e.currentTarget.closest('.locked')) {
+      return; // Block interaction for locked effects
+    }
     updateEffect(effect.id, { enabled: !effect.enabled });
   };
   
   const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Check if this control is locked (free tier restriction)
+    if (e.currentTarget.closest('.locked')) {
+      return; // Block interaction for locked effects
+    }
     updateEffect(effect.id, { value: Number(e.target.value) });
   };
 

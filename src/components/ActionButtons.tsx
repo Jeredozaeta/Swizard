@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { Crown, Sparkles, Save, Download, Image, Video, X, LampDesk as Desktop, WifiOff } from 'lucide-react';
+import { Crown, Sparkles, Save, Download, Image, Video, X, LampDesk as Desktop, WifiOff, Lock } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import { slicedExport } from '../audio/slicedExport';
 import { sanitizePresetName, validateDuration } from '../utils/validation';
@@ -25,6 +25,9 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
   }>({ type: 'black' });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isOnline, setIsOnline] = useState(true);
+
+  // Free tier: downloads are locked
+  const isDownloadLocked = true;
 
   useEffect(() => {
     if (isElectron) {
@@ -85,6 +88,16 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         closeButton: true
       });
     }
+  };
+
+  const handleDownloadClick = () => {
+    if (isDownloadLocked) {
+      toast.error('Upgrade to Pro to download your audio creations', {
+        icon: '🔒'
+      });
+      return;
+    }
+    handleExport();
   };
 
   const handleBackgroundSelect = (type: 'black' | 'image' | 'video') => {
@@ -353,12 +366,17 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         </button>
         
         <button
-          onClick={handleExport}
-          disabled={exporting}
-          className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 shadow-lg hover:shadow-xl transition-all duration-300"
+          onClick={handleDownloadClick}
+          disabled={exporting || isDownloadLocked}
+          className={`btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 ${
+            isDownloadLocked 
+              ? 'bg-gray-600/50 hover:bg-gray-600/50 cursor-not-allowed locked' 
+              : 'bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500'
+          } shadow-lg hover:shadow-xl transition-all duration-300`}
         >
-          <Download className="h-4 w-4" />
-          {getExportButtonText()}
+          {isDownloadLocked ? <Lock className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+          {isDownloadLocked ? 'Pro Only' : getExportButtonText()}
+          {isDownloadLocked && <div className="blur-mask" />}
         </button>
 
         {selectedDuration > 3600 && !isElectron && (
