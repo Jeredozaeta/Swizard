@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { Crown, Sparkles, Save, Download, Image, Video, X, LampDesk as Desktop, WifiOff, Lock } from 'lucide-react';
+import { Crown, Sparkles, Save, Download, Image, Video, X, LampDesk as Desktop, WifiOff } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import { slicedExport } from '../audio/slicedExport';
 import { sanitizePresetName, validateDuration } from '../utils/validation';
@@ -11,7 +11,7 @@ interface ActionButtonsProps {
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDuration }) => {
-  const { state, togglePlayback, sharePreset, isProUser } = useAudio();
+  const { state, togglePlayback, sharePreset } = useAudio();
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const exportTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -85,16 +85,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         closeButton: true
       });
     }
-  };
-
-  const handleDownloadClick = () => {
-    if (!isProUser) {
-      toast.error('Upgrade to Pro to download your audio creations', {
-        icon: '🔒'
-      });
-      return;
-    }
-    handleExport();
   };
 
   const handleBackgroundSelect = (type: 'black' | 'image' | 'video') => {
@@ -363,16 +353,12 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
         </button>
         
         <button
-          onClick={handleDownloadClick}
+          onClick={handleExport}
           disabled={exporting}
-          className={`btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 ${
-            !isProUser 
-              ? 'bg-gray-600/50 hover:bg-gray-600/50 cursor-not-allowed' 
-              : 'bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500'
-          } shadow-lg hover:shadow-xl transition-all duration-300`}
+          className="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 shadow-lg hover:shadow-xl transition-all duration-300"
         >
-          {!isProUser ? <Lock className="h-4 w-4" /> : <Download className="h-4 w-4" />}
-          {!isProUser ? 'Pro Only' : getExportButtonText()}
+          <Download className="h-4 w-4" />
+          {getExportButtonText()}
         </button>
 
         {selectedDuration > 3600 && !isElectron && (

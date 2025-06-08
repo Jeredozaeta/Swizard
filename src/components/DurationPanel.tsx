@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Lock } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 
 interface DurationPanelProps {
@@ -9,7 +9,7 @@ interface DurationPanelProps {
 
 const DurationPanel: React.FC<DurationPanelProps> = ({ selectedDuration, onDurationChange }) => {
   const [timeInput, setTimeInput] = useState('00:00:30');
-  const { state, isProUser } = useAudio();
+  const { state } = useAudio();
   
   const formatDuration = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -45,10 +45,7 @@ const DurationPanel: React.FC<DurationPanelProps> = ({ selectedDuration, onDurat
     seconds = isNaN(seconds) ? 0 : Math.min(seconds, 59);
     
     const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
-    
-    // For free users, cap at 30 seconds
-    const maxDuration = isProUser ? 43200 : 30; // 30s for free, 12h for Pro
-    return Math.min(Math.max(30, totalSeconds), maxDuration);
+    return Math.min(Math.max(30, totalSeconds), 43200); // Between 30s and 12h
   };
 
   const handleTimeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,13 +81,9 @@ const DurationPanel: React.FC<DurationPanelProps> = ({ selectedDuration, onDurat
     setTimeInput(formatDuration(selectedDuration));
   }, [selectedDuration]);
 
-  const isLocked = !isProUser && selectedDuration > 30;
-
   return (
     <div className="flex items-center justify-center gap-3 mb-6">
-      <div className={`flex items-center gap-2 bg-[#1a0b2e] rounded-lg border border-purple-500/20 px-3 py-1.5 relative ${
-        isLocked ? 'opacity-60' : ''
-      }`}>
+      <div className="flex items-center gap-2 bg-[#1a0b2e] rounded-lg border border-purple-500/20 px-3 py-1.5">
         <Clock className="h-4 w-4 text-purple-400" />
         <input
           type="text"
@@ -100,21 +93,11 @@ const DurationPanel: React.FC<DurationPanelProps> = ({ selectedDuration, onDurat
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
           placeholder="HH:MM:SS"
           className="w-20 bg-transparent text-center font-mono text-sm focus:outline-none text-purple-200 placeholder-purple-400/50"
-          title={isProUser ? "Enter duration (minimum 30s, maximum 12h)" : "Free users limited to 30 seconds"}
+          title="Enter duration (minimum 30s, maximum 12h)"
           maxLength={8}
           aria-label="Duration input"
         />
-        {isLocked && (
-          <div className="absolute inset-0 bg-black/20 rounded-lg flex items-center justify-center">
-            <Lock className="h-4 w-4 text-purple-400" />
-          </div>
-        )}
       </div>
-      {!isProUser && (
-        <div className="text-xs text-purple-400/70">
-          Free: 30s max • <span className="text-purple-300 cursor-pointer hover:underline">Upgrade for unlimited</span>
-        </div>
-      )}
     </div>
   );
 };
