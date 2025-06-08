@@ -65,14 +65,13 @@ const FrequencyPanel: React.FC = () => {
               key={channel.id} 
               className={`effect-card ${state.isPlaying && !isLocked ? 'effect-active' : ''} ${
                 !isLocked ? getIntensityClass(channel.frequency) : ''
-              } ${isLocked ? 'locked-element' : ''} relative`}
+              } ${isLocked ? 'opacity-60' : ''} relative`}
             >
               {isLocked && (
-                <div className="locked-overlay has-tooltip">
-                  <Lock className="h-6 w-6 locked-icon" />
-                  <span className="text-xs font-medium text-purple-300">Pro Only</span>
-                  <div className="tooltip -translate-y-full -translate-x-1/2 left-1/2 top-0 w-32 text-xs">
-                    Upgrade to unlock
+                <div className="absolute inset-0 bg-black/20 rounded-lg flex items-center justify-center z-10">
+                  <div className="flex flex-col items-center gap-2 text-purple-400">
+                    <Lock className="h-6 w-6" />
+                    <span className="text-xs font-medium">Pro Only</span>
                   </div>
                 </div>
               )}
