@@ -143,7 +143,7 @@ const Licensing: React.FC = () => {
             <section>
               <h2 className="text-xl font-semibold text-violet-300 mb-4">9. Contact Information</h2>
               <p className="text-violet-200/90">
-                For licensing questions, please contact hello@realsoundwizard.com
+                For licensing questions, please contact hello@swizard.app
               </p>
             </section>
           </div>

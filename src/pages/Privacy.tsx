@@ -146,7 +146,7 @@ const Privacy: React.FC = () => {
             <section>
               <h2 className="text-xl font-semibold text-violet-300 mb-4">9. Contact Us</h2>
               <p className="text-violet-200/90">
-                If you have questions about this Privacy Policy, please contact us at hello@realsoundwizard.com
+                If you have questions about this Privacy Policy, please contact us at hello@swizard.app
               </p>
             </section>
           </div>
