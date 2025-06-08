@@ -131,4 +131,5 @@ export interface AudioContextType {
   loadPreset: (id: string) => Promise<boolean>;
   audioContext: AudioContext | null;
   analyserNode: AnalyserNode | null;
+  isProUser: boolean;
 }

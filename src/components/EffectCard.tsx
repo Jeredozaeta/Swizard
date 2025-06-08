@@ -5,9 +5,10 @@ import { Info } from 'lucide-react';
 
 interface EffectCardProps {
   effect: AudioEffect;
+  isLocked?: boolean;
 }
 
-const EffectCard: React.FC<EffectCardProps> = ({ effect }) => {
+const EffectCard: React.FC<EffectCardProps> = ({ effect, isLocked = false }) => {
   if (!effect) {
     return null;
   }
@@ -15,10 +16,12 @@ const EffectCard: React.FC<EffectCardProps> = ({ effect }) => {
   const { updateEffect } = useAudio();
   
   const handleToggle = () => {
+    if (isLocked) return;
     updateEffect(effect.id, { enabled: !effect.enabled });
   };
   
   const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isLocked) return;
     updateEffect(effect.id, { value: Number(e.target.value) });
   };
 
@@ -49,14 +52,16 @@ const EffectCard: React.FC<EffectCardProps> = ({ effect }) => {
 
   const getIntensityClass = () => {
     const normalizedValue = (effect.value - effect.min) / (effect.max - effect.min);
-    if (!effect.enabled) return '';
+    if (!effect.enabled || isLocked) return '';
     if (normalizedValue > 0.8) return 'effect-high';
     if (normalizedValue > 0.4) return 'effect-medium';
     return 'effect-low';
   };
 
   return (
-    <div className={`effect-card ${effect.enabled ? 'effect-active' : ''} ${getIntensityClass()}`}>
+    <div className={`effect-card ${effect.enabled && !isLocked ? 'effect-active' : ''} ${getIntensityClass()} ${
+      isLocked ? 'opacity-60' : ''
+    }`}>
       <div className="flex items-center justify-between mb-4 md:mb-6">
         <div className="flex items-center gap-1">
           <h3 className="text-xs md:text-sm font-medium text-purple-200">{effect.name}</h3>
@@ -71,15 +76,16 @@ const EffectCard: React.FC<EffectCardProps> = ({ effect }) => {
         <div className="flex justify-end">
           <button
             onClick={handleToggle}
-            className={`toggle-switch ${effect.enabled ? 'bg-purple-600' : 'bg-gray-700'} ${
-              effect.enabled ? getIntensityClass() : ''
-            }`}
+            disabled={isLocked}
+            className={`toggle-switch ${effect.enabled && !isLocked ? 'bg-purple-600' : 'bg-gray-700'} ${
+              effect.enabled && !isLocked ? getIntensityClass() : ''
+            } ${isLocked ? 'cursor-not-allowed opacity-50' : ''}`}
             aria-pressed={effect.enabled}
           >
             <span className="sr-only">{effect.enabled ? 'Enabled' : 'Disabled'}</span>
             <span
               className={`toggle-switch-thumb ${
-                effect.enabled ? 'translate-x-5' : 'translate-x-1'
+                effect.enabled && !isLocked ? 'translate-x-5' : 'translate-x-1'
               }`}
             />
           </button>
@@ -87,12 +93,12 @@ const EffectCard: React.FC<EffectCardProps> = ({ effect }) => {
       </div>
       
       <div className={`relative transition-opacity duration-300 ${
-        effect.enabled ? 'opacity-100' : 'opacity-50'
+        effect.enabled && !isLocked ? 'opacity-100' : 'opacity-50'
       }`}>
         <div className="absolute -top-4 left-0 right-0 flex justify-center">
           <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-sm
             transition-all duration-200 ${
-              effect.enabled 
+              effect.enabled && !isLocked
                 ? 'text-purple-300 bg-indigo-900/80' 
                 : 'text-purple-400/50'
             }`}>
@@ -107,15 +113,15 @@ const EffectCard: React.FC<EffectCardProps> = ({ effect }) => {
           step={effect.step}
           value={effect.value}
           onChange={handleValueChange}
-          disabled={!effect.enabled}
+          disabled={!effect.enabled || isLocked}
           className={`w-full appearance-none bg-transparent 
             [&::-webkit-slider-runnable-track]:slider-track 
             [&::-webkit-slider-thumb]:slider-thumb 
             [&::-moz-range-track]:slider-track 
             [&::-moz-range-thumb]:slider-thumb
             transition-opacity duration-200
-            ${!effect.enabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-            ${effect.enabled ? getIntensityClass() : ''}
+            ${!effect.enabled || isLocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+            ${effect.enabled && !isLocked ? getIntensityClass() : ''}
           `}
         />
       </div>
