@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback, useState } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useRef, useCallback } from 'react';
 import { AudioState, FrequencyChannel, AudioEffect, AudioContextType, Preset } from '../types';
 import { toast } from 'react-toastify';
 import { useAuth } from './AuthContext';
