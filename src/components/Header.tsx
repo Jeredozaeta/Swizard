@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Minus, Waves, Brain, Headphones, Crown, HelpCircle, Sparkles, Shield, Heart, LogIn } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { Plus, Minus, Waves, Brain, Headphones, Crown, HelpCircle, Sparkles, Shield, Heart } from 'lucide-react';
 import PresetDemo from './PresetDemo';
 
 interface FAQItem {
@@ -39,58 +38,6 @@ const FAQ_ITEMS: FAQItem[] = [
 
 const Header: React.FC = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
-  const { supabase } = useAuth();
-  const [session, setSession] = useState<any>(null);
-
-  // Check auth state on component mount and listen for changes
-  React.useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-    };
-
-    checkSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [supabase]);
-
-  const handleLoginClick = async () => {
-    // Simple email/password auth flow
-    const email = prompt('Enter your email:');
-    if (!email) return;
-
-    const password = prompt('Enter your password (or leave blank to sign up):');
-    if (password === null) return; // User cancelled
-
-    try {
-      if (password === '') {
-        // Sign up flow
-        const { error } = await supabase.auth.signUp({
-          email,
-          password: 'temp-password-' + Math.random().toString(36).substring(7),
-        });
-        
-        if (error) throw error;
-        alert('Check your email for the sign-up link!');
-      } else {
-        // Sign in flow
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        
-        if (error) throw error;
-      }
-    } catch (error: any) {
-      alert('Authentication error: ' + error.message);
-    }
-  };
 
   const toggleQuestion = (index: number) => {
     setOpenIndex(openIndex === index ? null : index);
@@ -98,20 +45,7 @@ const Header: React.FC = () => {
 
   return (
     <>
-      <header className="mb-8 md:mb-12 text-center relative">
-        {/* Login/Signup Link - Top Right */}
-        {!session && (
-          <div className="absolute top-0 right-0">
-            <button
-              onClick={handleLoginClick}
-              className="flex items-center gap-1.5 text-sm text-purple-400 hover:text-purple-300 transition-colors"
-            >
-              <LogIn className="h-4 w-4" />
-              Log in / Sign up
-            </button>
-          </div>
-        )}
-
+      <header className="mb-8 md:mb-12 text-center">
         <div className="flex items-center justify-center gap-3 mb-4">
           <h1 className="text-5xl font-bold bg-gradient-to-r from-violet-500 to-fuchsia-400 bg-clip-text text-transparent">
             Swizard
