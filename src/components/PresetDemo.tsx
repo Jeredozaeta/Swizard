@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Volume2, Music, Waves, Brain } from 'lucide-react';
+import { Play, Pause, Volume2, Music, Waves, Brain, Zap, Target, Activity } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 interface PresetProps {
@@ -241,49 +241,87 @@ const Preset: React.FC<PresetProps> = ({ frequency, title, description, icon: Ic
 const PresetDemo: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto px-4 mb-16">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <Preset
-          frequency={432}
-          title="432 Hz Healing"
-          description="Experience the calming power of the 432 Hz frequency, known for its harmonious resonance with nature."
-          icon={Volume2}
-          effects={{
-            tremolo: { frequency: 4.8, depth: 0.3 }
-          }}
-        />
-        <Preset
-          frequency={7.83}
-          title="Schumann Resonance"
-          description="Earth's heartbeat frequency (7.83 Hz) for grounding and enhanced meditation."
-          icon={Brain}
-          waveform="square"
-          effects={{
-            isoPulses: { frequency: 7.83, depth: 0.6 },
-            amplitudeMod: { frequency: 7.83, depth: 0.5 },
-            pan360: { frequency: 0.2 }
-          }}
-        />
-        <Preset
-          frequency={528}
-          title="528 Hz Solfeggio"
-          description="The 'Miracle Tone', associated with transformation and DNA repair, promoting positive energy."
-          icon={Music}
-          effects={{
-            stereoPan: { frequency: 0.5 },
-            phaser: { frequency: 0.2, depth: 1000 }
-          }}
-        />
-        <Preset
-          frequency={639}
-          title="639 Hz Harmony"
-          description="Enhances understanding, tolerance, and love. Perfect for deep meditation and emotional healing."
-          icon={Waves}
-          effects={{
-            tremolo: { frequency: 6.39, depth: 0.4 },
-            stereoPan: { frequency: 0.3 },
-            phaser: { frequency: 0.15, depth: 800 }
-          }}
-        />
+      {/* New Timing Presets Section */}
+      <div className="mb-8">
+        <h3 className="text-lg font-semibold text-purple-300 mb-4 text-center">Timing Presets</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+          <Preset
+            frequency={5}
+            title="Focus"
+            description="5 Hz theta waves to enhance concentration and mental clarity for deep work sessions."
+            icon={Target}
+            effects={{
+              tremolo: { frequency: 5, depth: 0.35 }
+            }}
+          />
+          <Preset
+            frequency={10}
+            title="Flow"
+            description="10 Hz alpha waves to promote relaxed focus and creative flow states."
+            icon={Zap}
+            effects={{
+              tremolo: { frequency: 10, depth: 0.25 }
+            }}
+          />
+          <Preset
+            frequency={40}
+            title="Gamma"
+            description="40 Hz gamma waves for heightened awareness and cognitive processing."
+            icon={Activity}
+            effects={{
+              tremolo: { frequency: 40, depth: 0.15 }
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Existing Frequency Range Presets */}
+      <div>
+        <h3 className="text-lg font-semibold text-purple-300 mb-4 text-center">Frequency Healing</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          <Preset
+            frequency={432}
+            title="432 Hz Healing"
+            description="Experience the calming power of the 432 Hz frequency, known for its harmonious resonance with nature."
+            icon={Volume2}
+            effects={{
+              tremolo: { frequency: 4.8, depth: 0.3 }
+            }}
+          />
+          <Preset
+            frequency={7.83}
+            title="Schumann Resonance"
+            description="Earth's heartbeat frequency (7.83 Hz) for grounding and enhanced meditation."
+            icon={Brain}
+            waveform="square"
+            effects={{
+              isoPulses: { frequency: 7.83, depth: 0.6 },
+              amplitudeMod: { frequency: 7.83, depth: 0.5 },
+              pan360: { frequency: 0.2 }
+            }}
+          />
+          <Preset
+            frequency={528}
+            title="528 Hz Solfeggio"
+            description="The 'Miracle Tone', associated with transformation and DNA repair, promoting positive energy."
+            icon={Music}
+            effects={{
+              stereoPan: { frequency: 0.5 },
+              phaser: { frequency: 0.2, depth: 1000 }
+            }}
+          />
+          <Preset
+            frequency={639}
+            title="639 Hz Harmony"
+            description="Enhances understanding, tolerance, and love. Perfect for deep meditation and emotional healing."
+            icon={Waves}
+            effects={{
+              tremolo: { frequency: 6.39, depth: 0.4 },
+              stereoPan: { frequency: 0.3 },
+              phaser: { frequency: 0.15, depth: 800 }
+            }}
+          />
+        </div>
       </div>
     </div>
   );
