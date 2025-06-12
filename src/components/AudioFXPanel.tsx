@@ -42,9 +42,6 @@ const AudioFXPanel: React.FC = () => {
     return !freeEffects.includes(effectId);
   };
 
-  // Free tier: Random button is locked
-  const isRandomButtonLocked = true;
-
   useEffect(() => {
     const resetInactivityTimer = () => {
       if (inactivityTimer) {
@@ -75,14 +72,7 @@ const AudioFXPanel: React.FC = () => {
   }, [inactivityTimer]);
 
   const generateRandomSound = async () => {
-    if (isGeneratingPreset || isRandomButtonLocked) {
-      if (isRandomButtonLocked) {
-        toast.error('Upgrade to Pro to use random sound generation', {
-          icon: '🔒'
-        });
-      }
-      return;
-    }
+    if (isGeneratingPreset) return;
     setIsGeneratingPreset(true);
 
     const waveforms = ['sine', 'square', 'sawtooth', 'triangle'];
@@ -170,24 +160,31 @@ const AudioFXPanel: React.FC = () => {
         </h2>
         <button
           onClick={generateRandomSound}
-          disabled={isGeneratingPreset || isRandomButtonLocked}
+          disabled={isGeneratingPreset}
           className={`btn btn-secondary btn-sm ${isInactive ? 'animate-attention' : ''} ${
-            isGeneratingPreset || isRandomButtonLocked ? 'opacity-50 cursor-not-allowed locked' : ''
-          } relative`}
+            isGeneratingPreset ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
         >
           <Music className={`h-4 w-4 ${isGeneratingPreset ? 'animate-spin' : ''}`} />
-          <span>{isRandomButtonLocked ? 'Pro Only' : 'Create Random Sound'}</span>
-          {isRandomButtonLocked && <div className="blur-mask" />}
+          <span>Create Random Sound</span>
         </button>
       </div>
       
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 md:gap-3">
         {standardEffects.map((id, index) => {
           const isLocked = isEffectLocked(id);
+          const isFreeEffect = index < 3;
           
           return (
             <div key={id} className={`col-span-1 relative ${isLocked ? 'locked' : ''}`}>
               {isLocked && <div className="blur-mask" />}
+              {!isLocked && isFreeEffect && (
+                <div className="absolute top-2 right-2 z-20">
+                  <span className="text-xs bg-green-600/20 text-green-300 px-1.5 py-0.5 rounded-full">
+                    Free
+                  </span>
+                </div>
+              )}
               <EffectCard effect={state.effects[id]} />
             </div>
           );

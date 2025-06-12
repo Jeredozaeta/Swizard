@@ -82,6 +82,11 @@ const FrequencyPanel: React.FC = () => {
               <div className="flex items-center justify-center mb-2 md:mb-3">
                 <h3 className="text-sm md:text-base font-medium text-purple-200">
                   Frequency {channel.id}
+                  {!isLocked && (
+                    <span className="ml-2 text-xs bg-green-600/20 text-green-300 px-2 py-0.5 rounded-full">
+                      Free
+                    </span>
+                  )}
                 </h3>
               </div>
               
