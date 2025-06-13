@@ -10,6 +10,7 @@ import Licensing from './pages/Licensing';
 import Science from './pages/Science';
 import ErrorBoundary from './components/ErrorBoundary';
 import LegalDisclaimer from './components/LegalDisclaimer';
+import AdminMiniPanel from './components/AdminMiniPanel';
 import { AudioProvider } from './context/AudioContext';
 import { StripeProvider } from './context/StripeContext';
 import { AuthProvider } from './context/AuthContext';
@@ -39,6 +40,8 @@ const App: React.FC = () => {
                     <Route path="*" element={<Navigate to="/app" replace />} />
                   </Routes>
                 </div>
+                {/* Global Admin Mini Panel */}
+                <AdminMiniPanel />
               </div>
               <ToastContainer position="bottom-right" theme="dark" />
             </AudioProvider>
