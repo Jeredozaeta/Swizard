@@ -4,6 +4,7 @@ import { ToastContainer } from 'react-toastify';
 import MainContent from './components/MainContent';
 import Success from './components/Success';
 import AdminLogin from './components/AdminLogin';
+import AuthPage from './components/Auth';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import Licensing from './pages/Licensing';
@@ -31,6 +32,7 @@ const App: React.FC = () => {
                     <Route path="/" element={<Navigate to="/app" replace />} />
                     <Route path="/app" element={<MainContent />} />
                     <Route path="/app/preset/:id" element={<MainContent />} />
+                    <Route path="/auth" element={<AuthPage />} />
                     <Route path="/success" element={<Success />} />
                     <Route path="/admin-login" element={<AdminLogin />} />
                     <Route path="/terms" element={<Terms />} />

@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, Minus, Waves, Brain, Headphones, Crown, HelpCircle, Sparkles, Shield, Heart } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Plus, Minus, Waves, Brain, Headphones, Crown, HelpCircle, Sparkles, Shield, Heart, LogIn, LogOut, User } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { toast } from 'react-toastify';
 import PresetDemo from './PresetDemo';
 
 interface FAQItem {
@@ -38,14 +41,56 @@ const FAQ_ITEMS: FAQItem[] = [
 
 const Header: React.FC = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const { user, supabase } = useAuth();
+  const navigate = useNavigate();
 
   const toggleQuestion = (index: number) => {
     setOpenIndex(openIndex === index ? null : index);
   };
 
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      toast.success('Logged out successfully');
+      navigate('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Failed to log out');
+    }
+  };
+
   return (
     <>
-      <header className="mb-8 md:mb-12 text-center">
+      <header className="mb-8 md:mb-12 text-center relative">
+        {/* Auth Controls - Top Right */}
+        <div className="absolute top-0 right-0 flex items-center gap-3">
+          {user ? (
+            // Logged in state
+            <>
+              <div className="flex items-center gap-2 text-sm text-purple-300">
+                <User className="h-4 w-4" />
+                <span className="hidden sm:inline">{user.email}</span>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-purple-300 hover:text-purple-200 transition-colors border border-purple-500/30 rounded-lg hover:border-purple-500/50"
+              >
+                <LogOut className="h-4 w-4" />
+                Logout
+              </button>
+            </>
+          ) : (
+            // Logged out state
+            <Link
+              to="/auth"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-purple-300 hover:text-purple-200 transition-colors border border-purple-500/30 rounded-lg hover:border-purple-500/50"
+            >
+              <LogIn className="h-4 w-4" />
+              Login / Sign up
+            </Link>
+          )}
+        </div>
+
         <div className="flex items-center justify-center gap-3 mb-4">
           <h1 className="text-5xl font-bold bg-gradient-to-r from-violet-500 to-fuchsia-400 bg-clip-text text-transparent">
             Swizard
