@@ -92,7 +92,7 @@ const AuthPage: React.FC = () => {
               }
             }}
             theme="dark"
-            providers={['google', 'github']}
+            providers={['google']}
             redirectTo={window.location.origin}
             showLinks={true}
             view="sign_in"
