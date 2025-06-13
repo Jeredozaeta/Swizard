@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { Crown, Sparkles, Save, Download, Image, Video, X, LampDesk as Desktop, WifiOff } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
+import { useAuth } from '../context/AuthContext';
 import { slicedExport } from '../audio/slicedExport';
 import { sanitizePresetName, validateDuration } from '../utils/validation';
 
@@ -12,6 +13,7 @@ interface ActionButtonsProps {
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDuration }) => {
   const { state, togglePlayback, sharePreset } = useAudio();
+  const { hasUnlimitedAccess } = useAuth();
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const exportTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -130,12 +132,15 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
       
       if (!filePath) return;
 
-      const { available } = await window.electron.checkDiskSpace(filePath);
-      const requiredSpace = validatedDuration * (isVideo ? 384000 : 192000);
+      // Skip disk space check if user has unlimited access
+      if (!hasUnlimitedAccess) {
+        const { available } = await window.electron.checkDiskSpace(filePath);
+        const requiredSpace = validatedDuration * (isVideo ? 384000 : 192000);
 
-      if (available < requiredSpace) {
-        toast.error(`Not enough disk space. Need ${Math.ceil(requiredSpace / 1024 / 1024)} MB free.`);
-        return;
+        if (available < requiredSpace) {
+          toast.error(`Not enough disk space. Need ${Math.ceil(requiredSpace / 1024 / 1024)} MB free.`);
+          return;
+        }
       }
 
       setExporting(true);
@@ -196,7 +201,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
     try {
       const validatedDuration = validateDuration(selectedDuration);
 
-      if (validatedDuration < 30) {
+      // Skip duration validation if user has unlimited access
+      if (!hasUnlimitedAccess && validatedDuration < 30) {
         toast.error('Please select a duration of at least 30 seconds', {
           autoClose: 5000,
           pauseOnHover: true,
@@ -361,7 +367,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onShowPricing, selectedDu
           {getExportButtonText()}
         </button>
 
-        {selectedDuration > 3600 && !isElectron && (
+        {/* Only show desktop app recommendation if user doesn't have unlimited access */}
+        {selectedDuration > 3600 && !isElectron && !hasUnlimitedAccess && (
           <div className="has-tooltip">
             <a
               href="https://github.com/Jeredozaeta/Swizard/releases/latest"

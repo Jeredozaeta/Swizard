@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
+import { useAuth } from '../context/AuthContext';
 
 interface DurationPanelProps {
   selectedDuration: number;
@@ -10,6 +11,7 @@ interface DurationPanelProps {
 const DurationPanel: React.FC<DurationPanelProps> = ({ selectedDuration, onDurationChange }) => {
   const [timeInput, setTimeInput] = useState('00:00:30');
   const { state } = useAudio();
+  const { hasUnlimitedAccess } = useAuth();
   
   const formatDuration = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -40,12 +42,20 @@ const DurationPanel: React.FC<DurationPanelProps> = ({ selectedDuration, onDurat
     }
     
     // Validate each part
-    hours = isNaN(hours) ? 0 : Math.min(hours, 12);
+    hours = isNaN(hours) ? 0 : hours;
     minutes = isNaN(minutes) ? 0 : Math.min(minutes, 59);
     seconds = isNaN(seconds) ? 0 : Math.min(seconds, 59);
     
     const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
-    return Math.min(Math.max(30, totalSeconds), 43200); // Between 30s and 12h
+    
+    // Apply limits based on user access level
+    if (hasUnlimitedAccess) {
+      // No upper limit for unlimited access users, but still enforce minimum
+      return Math.max(30, totalSeconds);
+    } else {
+      // Standard limits: between 30s and 12h
+      return Math.min(Math.max(30, totalSeconds), 43200);
+    }
   };
 
   const handleTimeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -93,11 +103,19 @@ const DurationPanel: React.FC<DurationPanelProps> = ({ selectedDuration, onDurat
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
           placeholder="HH:MM:SS"
           className="w-20 bg-transparent text-center font-mono text-sm focus:outline-none text-purple-200 placeholder-purple-400/50"
-          title="Enter duration (minimum 30s, maximum 12h)"
+          title={hasUnlimitedAccess 
+            ? "Enter duration (minimum 30s, no maximum limit)" 
+            : "Enter duration (minimum 30s, maximum 12h)"
+          }
           maxLength={8}
           aria-label="Duration input"
         />
       </div>
+      {hasUnlimitedAccess && (
+        <div className="text-xs text-green-400 font-medium">
+          ∞ Unlimited Duration
+        </div>
+      )}
     </div>
   );
 };

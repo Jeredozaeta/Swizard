@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAudio } from '../context/AudioContext';
-import { Settings, Clock, Activity, Mail, CheckSquare, Waves, Eye, EyeOff, Upload } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { Settings, Clock, Activity, Mail, CheckSquare, Waves, Eye, EyeOff, Upload, Shield, ShieldCheck } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 interface DevModePanelProps {
@@ -19,8 +20,10 @@ const DevModePanel: React.FC<DevModePanelProps> = ({
   onToggleWaveform
 }) => {
   const { state, audioContext } = useAudio();
+  const { adminOverride, hasUnlimitedAccess, toggleAdminOverride } = useAuth();
   const [sessionTime, setSessionTime] = useState(0);
   const [isDeploying, setIsDeploying] = useState(false);
+  const [isTogglingOverride, setIsTogglingOverride] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -48,6 +51,25 @@ const DevModePanel: React.FC<DevModePanelProps> = ({
         return 'text-red-400';
       default:
         return 'text-gray-400';
+    }
+  };
+
+  const handleToggleAdminOverride = async () => {
+    if (isTogglingOverride) return;
+    
+    setIsTogglingOverride(true);
+    try {
+      await toggleAdminOverride();
+      toast.success(`Admin Override ${!adminOverride ? 'ENABLED' : 'DISABLED'}`, {
+        icon: !adminOverride ? '🔓' : '🔒',
+        position: "bottom-right",
+        autoClose: 3000
+      });
+    } catch (error) {
+      console.error('Failed to toggle admin override:', error);
+      toast.error('Failed to toggle admin override');
+    } finally {
+      setIsTogglingOverride(false);
     }
   };
 
@@ -175,7 +197,60 @@ const DevModePanel: React.FC<DevModePanelProps> = ({
             </div>
           </div>
 
+          {/* Admin Override Status */}
+          <div className="col-span-2 bg-indigo-950/50 rounded p-2">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-purple-300/70">Admin Status:</span>
+              <div className="flex items-center gap-2">
+                {hasUnlimitedAccess ? (
+                  <div className="flex items-center gap-1">
+                    <ShieldCheck className="h-4 w-4 text-green-400" />
+                    <span className="text-xs font-mono text-green-400">UNLIMITED ACCESS</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <Shield className="h-4 w-4 text-gray-400" />
+                    <span className="text-xs font-mono text-gray-400">LIMITED ACCESS</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-purple-300/50">Override Status:</span>
+              <span className={`text-xs font-mono px-2 py-0.5 rounded ${
+                adminOverride 
+                  ? 'bg-green-600/20 text-green-400 border border-green-500/30' 
+                  : 'bg-red-600/20 text-red-400 border border-red-500/30'
+              }`}>
+                {adminOverride ? 'OVERRIDE ON' : 'OVERRIDE OFF'}
+              </span>
+            </div>
+          </div>
+
           <div className="col-span-2 space-y-2">
+            {/* Admin Override Toggle Button */}
+            <button
+              onClick={handleToggleAdminOverride}
+              disabled={isTogglingOverride}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded text-sm font-medium transition-colors ${
+                adminOverride
+                  ? 'bg-green-600/20 text-green-300 hover:bg-green-600/30 border border-green-500/30'
+                  : 'bg-red-600/20 text-red-300 hover:bg-red-600/30 border border-red-500/30'
+              } ${isTogglingOverride ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {adminOverride ? (
+                <>
+                  <ShieldCheck className="h-4 w-4" />
+                  {isTogglingOverride ? 'Disabling...' : 'Disable Admin Override'}
+                </>
+              ) : (
+                <>
+                  <Shield className="h-4 w-4" />
+                  {isTogglingOverride ? 'Enabling...' : 'Enable Admin Override'}
+                </>
+              )}
+            </button>
+
             <button
               onClick={onToggleWaveform}
               className="w-full flex items-center gap-2 px-3 py-2 bg-purple-500/20 rounded text-purple-300 hover:bg-purple-500/30 transition-colors"
