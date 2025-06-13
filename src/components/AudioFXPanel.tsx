@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Music, Lock } from 'lucide-react';
+import { Music } from 'lucide-react';
 import { useAudio } from '../context/AudioContext';
 import EffectCard from './EffectCard';
 import { toast } from 'react-toastify';
@@ -31,16 +31,6 @@ const AudioFXPanel: React.FC = () => {
     'glitch',
     'pingPong'
   ];
-
-  // Get free tier effect IDs (first 3 effects)
-  const getFreeEffectIds = () => {
-    return standardEffects.slice(0, 3); // ringMod, amplitudeMod, isoPulses
-  };
-
-  const isEffectLocked = (effectId: string) => {
-    const freeEffects = getFreeEffectIds();
-    return !freeEffects.includes(effectId);
-  };
 
   useEffect(() => {
     const resetInactivityTimer = () => {
@@ -84,11 +74,8 @@ const AudioFXPanel: React.FC = () => {
         togglePlayback();
       }
 
-      // For free users, only update first channel
-      const channelsToUpdate = state.channels.filter(ch => ch.id === 1);
-
-      for (const channel of channelsToUpdate) {
-        if (!channel.enabled && channel.id !== 1) continue;
+      for (const channel of state.channels) {
+        if (!channel.enabled) continue;
         
         await new Promise(resolve => setTimeout(resolve, delay));
         
@@ -102,10 +89,7 @@ const AudioFXPanel: React.FC = () => {
         });
       }
 
-      // For effects, only update free effects
-      const effectsToUpdate = Object.values(state.effects).filter(effect => !isEffectLocked(effect.id));
-
-      for (const effect of effectsToUpdate) {
+      for (const effect of Object.values(state.effects)) {
         await new Promise(resolve => setTimeout(resolve, delay));
         
         const shouldEnable = getSecureRandomBool(0.4);
@@ -152,12 +136,7 @@ const AudioFXPanel: React.FC = () => {
   return (
     <section className="mb-8">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xl font-semibold text-purple-300">
-          Audio FX
-          <span className="ml-3 text-sm text-purple-400/70">
-            ({getFreeEffectIds().length} of {standardEffects.length + specialEffects.length} unlocked)
-          </span>
-        </h2>
+        <h2 className="text-xl font-semibold text-purple-300">Audio FX</h2>
         <button
           onClick={generateRandomSound}
           disabled={isGeneratingPreset}
@@ -171,37 +150,19 @@ const AudioFXPanel: React.FC = () => {
       </div>
       
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 md:gap-3">
-        {standardEffects.map((id, index) => {
-          const isLocked = isEffectLocked(id);
-          const isFreeEffect = index < 3;
-          
-          return (
-            <div key={id} className={`col-span-1 relative ${isLocked ? 'locked' : ''}`}>
-              {isLocked && <div className="blur-mask" />}
-              {!isLocked && isFreeEffect && (
-                <div className="absolute top-2 right-2 z-20">
-                  <span className="text-xs bg-green-600/20 text-green-300 px-1.5 py-0.5 rounded-full">
-                    Free
-                  </span>
-                </div>
-              )}
-              <EffectCard effect={state.effects[id]} />
-            </div>
-          );
-        })}
+        {standardEffects.map(id => (
+          <div key={id} className="col-span-1">
+            <EffectCard effect={state.effects[id]} />
+          </div>
+        ))}
       </div>
 
       <div className="mt-2 md:mt-3 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
-        {specialEffects.map(id => {
-          const isLocked = isEffectLocked(id);
-          
-          return (
-            <div key={id} className={`col-span-1 relative ${isLocked ? 'locked' : ''}`}>
-              {isLocked && <div className="blur-mask" />}
-              <EffectCard effect={state.effects[id]} />
-            </div>
-          );
-        })}
+        {specialEffects.map(id => (
+          <div key={id} className="col-span-1">
+            <EffectCard effect={state.effects[id]} />
+          </div>
+        ))}
       </div>
     </section>
   );
