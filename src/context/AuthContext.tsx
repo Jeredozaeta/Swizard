@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { createClient, User } from '@supabase/supabase-js';
+import { toast } from 'react-toastify';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -33,6 +34,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return role?.role === 'admin';
   };
 
+  const checkEmailConfirmation = async (currentUser: User) => {
+    // Check if email is confirmed
+    if (!currentUser.email_confirmed_at) {
+      console.log('Email not confirmed, signing out user');
+      
+      // Sign out immediately
+      await supabase.auth.signOut();
+      
+      // Show branded error message
+      toast.error('Your email isn\'t confirmed yet – check your inbox.', {
+        icon: '📧',
+        position: "top-center",
+        autoClose: 6000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        style: {
+          background: 'linear-gradient(135deg, #1a0b2e, #0f0720)',
+          border: '1px solid rgba(139, 92, 246, 0.3)',
+          color: '#e879f9'
+        }
+      });
+      
+      return false; // Email not confirmed
+    }
+    
+    return true; // Email confirmed
+  };
+
   const toggleAdminOverride = async () => {
     if (!user) return;
 
@@ -60,9 +91,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       const currentUser = session?.user || null;
-      setUser(currentUser);
-
+      
       if (currentUser) {
+        // Check email confirmation for sign-in events
+        if (event === 'SIGNED_IN') {
+          const isConfirmed = await checkEmailConfirmation(currentUser);
+          if (!isConfirmed) {
+            // User was signed out due to unconfirmed email
+            setUser(null);
+            setIsAdmin(false);
+            setAdminOverride(false);
+            setHasUnlimitedAccess(false);
+            return;
+          }
+        }
+
         // Check admin role from database
         const adminRole = await checkAdminRole(currentUser.id);
         setIsAdmin(adminRole);
@@ -74,6 +117,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Calculate unlimited access
         const unlimited = adminRole || override;
         setHasUnlimitedAccess(unlimited);
+
+        // Set user after all checks pass
+        setUser(currentUser);
 
         // Send welcome email for new signups
         if (event === 'SIGNED_UP') {
@@ -119,6 +165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
       } else {
+        setUser(null);
         setIsAdmin(false);
         setAdminOverride(false);
         setHasUnlimitedAccess(false);

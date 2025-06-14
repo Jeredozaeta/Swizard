@@ -30,6 +30,33 @@ const AuthPage: React.FC = () => {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
+        // Check email confirmation
+        if (!session.user.email_confirmed_at) {
+          console.log('User signed in but email not confirmed, signing out');
+          
+          // Sign out immediately
+          await supabase.auth.signOut();
+          
+          // Show branded error message
+          toast.error('Your email isn\'t confirmed yet – check your inbox.', {
+            icon: '📧',
+            position: "top-center",
+            autoClose: 6000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            style: {
+              background: 'linear-gradient(135deg, #1a0b2e, #0f0720)',
+              border: '1px solid rgba(139, 92, 246, 0.3)',
+              color: '#e879f9'
+            }
+          });
+          
+          return; // Don't proceed with navigation
+        }
+
+        // Email is confirmed, proceed normally
         toast.success('Welcome to Swizard!', {
           icon: '✨'
         });
@@ -64,7 +91,7 @@ const AuthPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: formData.email.trim(),
         password: formData.password
       });
@@ -76,6 +103,30 @@ const AuthPage: React.FC = () => {
           toast.error('Please check your email and confirm your account');
         } else {
           toast.error(error.message);
+        }
+      } else if (data.user) {
+        // Check email confirmation immediately after successful sign-in
+        if (!data.user.email_confirmed_at) {
+          console.log('Sign-in successful but email not confirmed, signing out');
+          
+          // Sign out immediately
+          await supabase.auth.signOut();
+          
+          // Show branded error message
+          toast.error('Your email isn\'t confirmed yet – check your inbox.', {
+            icon: '📧',
+            position: "top-center",
+            autoClose: 6000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            style: {
+              background: 'linear-gradient(135deg, #1a0b2e, #0f0720)',
+              border: '1px solid rgba(139, 92, 246, 0.3)',
+              color: '#e879f9'
+            }
+          });
         }
       }
     } catch (error: any) {
@@ -175,7 +226,7 @@ const AuthPage: React.FC = () => {
     
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth`
@@ -185,6 +236,7 @@ const AuthPage: React.FC = () => {
       if (error) {
         toast.error(error.message);
       }
+      // Note: OAuth flow will handle the redirect and email confirmation check
     } catch (error: any) {
       console.error('Google sign in error:', error);
       toast.error('Failed to sign in with Google');
