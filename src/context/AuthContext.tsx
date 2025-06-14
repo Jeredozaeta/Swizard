@@ -76,7 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setHasUnlimitedAccess(unlimited);
 
         // Send welcome email for new signups
-        if (event === 'SIGNED_IN') {
+        if (event === 'SIGNED_UP') {
           try {
             await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
               method: 'POST',
@@ -87,11 +87,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               body: JSON.stringify({
                 type: 'welcome',
                 email: session?.user?.email,
-                name: session?.user?.user_metadata?.full_name
+                data: {
+                  name: session?.user?.user_metadata?.full_name || 'User'
+                }
               })
             });
           } catch (error) {
             console.error('Failed to send welcome email:', error);
+          }
+        }
+
+        // Send email verification prompt for unconfirmed emails
+        if (event === 'SIGNED_UP' && !currentUser.email_confirmed_at) {
+          try {
+            await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session?.access_token}`,
+              },
+              body: JSON.stringify({
+                type: 'verify_prompt',
+                email: session?.user?.email,
+                data: {
+                  name: session?.user?.user_metadata?.full_name || 'User'
+                }
+              })
+            });
+          } catch (error) {
+            console.error('Failed to send verification prompt email:', error);
           }
         }
       } else {

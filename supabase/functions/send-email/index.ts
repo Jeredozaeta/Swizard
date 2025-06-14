@@ -72,11 +72,11 @@ serve(async (req) => {
     switch (type) {
       case 'welcome':
         templateAlias = 'welcome';
-        subject = 'Welcome to Real Sound Wizard!';
+        subject = 'Welcome to Swizard!';
         break;
       case 'verify_prompt':
-        templateAlias = 'verify_prompt';
-        subject = 'Verify Your Email Address';
+        templateAlias = 'email-confirmation';
+        subject = 'Please Confirm Your Email Address';
         break;
       case 'verify_success':
         templateAlias = 'verify_success';
@@ -87,8 +87,8 @@ serve(async (req) => {
         subject = 'Reminder: Verify Your Email';
         break;
       case 'reset_password':
-        templateAlias = 'reset_password';
-        subject = 'Reset Your Password';
+        templateAlias = 'password-reset';
+        subject = 'Reset Your Swizard Password';
         break;
       case 'pro_payment':
         templateAlias = 'pro_payment';
@@ -117,8 +117,18 @@ serve(async (req) => {
     }
 
     const templateModel = {
-      product_name: 'Real Sound Wizard',
+      product_name: 'Swizard',
+      product_url: 'https://realsoundwizard.com',
+      company_name: 'Swizard',
+      company_address: 'Swizard Inc.',
+      support_email: 'hello@realsoundwizard.com',
       name: data?.name || 'User',
+      action_url: data?.action_url || 'https://realsoundwizard.com/auth',
+      login_url: 'https://realsoundwizard.com/auth',
+      username: data?.name || email.split('@')[0],
+      trial_length: '7',
+      trial_start_date: new Date().toLocaleDateString(),
+      trial_end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString(),
       ...data
     };
 
@@ -142,7 +152,7 @@ serve(async (req) => {
     if (!postmarkResponse.ok) {
       console.error('Postmark error:', postmarkData);
       return new Response(
-        JSON.stringify({ error: 'Failed to send email' }),
+        JSON.stringify({ error: 'Failed to send email', details: postmarkData }),
         { 
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -165,7 +175,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: 'Email sent successfully'
+        message: 'Email sent successfully',
+        messageId: postmarkData.MessageID
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -176,7 +187,7 @@ serve(async (req) => {
     console.error('Email sending error:', error);
     
     return new Response(
-      JSON.stringify({ error: 'Failed to send email' }),
+      JSON.stringify({ error: 'Failed to send email', details: error.message }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500
