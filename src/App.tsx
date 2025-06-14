@@ -5,6 +5,7 @@ import MainContent from './components/MainContent';
 import Success from './components/Success';
 import AdminLogin from './components/AdminLogin';
 import AuthPage from './components/Auth';
+import AuthCallback from './components/AuthCallback';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import Licensing from './pages/Licensing';
@@ -33,6 +34,7 @@ const App: React.FC = () => {
                     <Route path="/app" element={<MainContent />} />
                     <Route path="/app/preset/:id" element={<MainContent />} />
                     <Route path="/auth" element={<AuthPage />} />
+                    <Route path="/auth/callback" element={<AuthCallback />} />
                     <Route path="/success" element={<Success />} />
                     <Route path="/admin-login" element={<AdminLogin />} />
                     <Route path="/terms" element={<Terms />} />

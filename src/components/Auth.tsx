@@ -193,7 +193,7 @@ const AuthPage: React.FC = () => {
           data: {
             full_name: formData.fullName.trim()
           },
-          emailRedirectTo: `${window.location.origin}/auth`
+          emailRedirectTo: `${window.location.origin}/auth/callback`
         }
       });
 
@@ -227,7 +227,7 @@ const AuthPage: React.FC = () => {
     setLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(formData.email.trim(), {
-        redirectTo: `${window.location.origin}/auth`
+        redirectTo: `${window.location.origin}/auth/callback`
       });
 
       if (error) {
@@ -253,7 +253,7 @@ const AuthPage: React.FC = () => {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth`
+          redirectTo: `${window.location.origin}/auth/callback`
         }
       });
 
