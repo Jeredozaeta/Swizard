@@ -14,6 +14,7 @@ interface AuthContextType {
   adminOverride: boolean;
   hasUnlimitedAccess: boolean;
   toggleAdminOverride: () => Promise<void>;
+  sendConfirmationAgain: (email: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -62,6 +63,93 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     
     return true; // Email confirmed
+  };
+
+  const sendConfirmationAgain = async (email: string): Promise<boolean> => {
+    try {
+      // Get current user to check rate limit
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      
+      if (currentUser) {
+        // Check rate limit from user metadata
+        const lastSent = currentUser.user_metadata?.last_confirmation_sent;
+        const now = Date.now();
+        const tenMinutesAgo = now - (10 * 60 * 1000); // 10 minutes in milliseconds
+        
+        if (lastSent && lastSent > tenMinutesAgo) {
+          const remainingTime = Math.ceil((lastSent + (10 * 60 * 1000) - now) / 60000);
+          toast.error(`Please wait ${remainingTime} more minute(s) before resending.`, {
+            icon: '⏰',
+            position: "top-center",
+            autoClose: 4000,
+            style: {
+              background: 'linear-gradient(135deg, #1a0b2e, #0f0720)',
+              border: '1px solid rgba(139, 92, 246, 0.3)',
+              color: '#e879f9'
+            }
+          });
+          return false;
+        }
+        
+        // Update user metadata with current timestamp
+        await supabase.auth.updateUser({
+          data: {
+            ...currentUser.user_metadata,
+            last_confirmation_sent: now
+          }
+        });
+      }
+      
+      // Send confirmation email
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth`
+        }
+      });
+      
+      if (error) {
+        console.error('Resend confirmation error:', error);
+        toast.error('Failed to resend confirmation email. Please try again.', {
+          icon: '❌',
+          position: "top-center",
+          autoClose: 4000,
+          style: {
+            background: 'linear-gradient(135deg, #1a0b2e, #0f0720)',
+            border: '1px solid rgba(139, 92, 246, 0.3)',
+            color: '#e879f9'
+          }
+        });
+        return false;
+      }
+      
+      toast.success('Confirmation email sent! Check your inbox.', {
+        icon: '📧',
+        position: "top-center",
+        autoClose: 5000,
+        style: {
+          background: 'linear-gradient(135deg, #1a0b2e, #0f0720)',
+          border: '1px solid rgba(139, 92, 246, 0.3)',
+          color: '#10b981'
+        }
+      });
+      
+      return true;
+    } catch (error: any) {
+      console.error('Unexpected error in sendConfirmationAgain:', error);
+      toast.error('An unexpected error occurred. Please try again.', {
+        icon: '❌',
+        position: "top-center",
+        autoClose: 4000,
+        style: {
+          background: 'linear-gradient(135deg, #1a0b2e, #0f0720)',
+          border: '1px solid rgba(139, 92, 246, 0.3)',
+          color: '#e879f9'
+        }
+      });
+      return false;
+    }
   };
 
   const toggleAdminOverride = async () => {
@@ -184,7 +272,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isAdmin, 
       adminOverride, 
       hasUnlimitedAccess, 
-      toggleAdminOverride 
+      toggleAdminOverride,
+      sendConfirmationAgain
     }}>
       {children}
     </AuthContext.Provider>

@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ArrowLeft, Mail, Lock, User, Eye, EyeOff, Sparkles } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, User, Eye, EyeOff, Sparkles, RefreshCw } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 type AuthView = 'sign_in' | 'sign_up' | 'forgot_password' | 'check_email';
 
 const AuthPage: React.FC = () => {
   const navigate = useNavigate();
-  const { supabase, user } = useAuth();
+  const { supabase, user, sendConfirmationAgain } = useAuth();
   const [view, setView] = useState<AuthView>('sign_in');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showResendLink, setShowResendLink] = useState(false);
+  const [resendingConfirmation, setResendingConfirmation] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -33,6 +35,9 @@ const AuthPage: React.FC = () => {
         // Check email confirmation
         if (!session.user.email_confirmed_at) {
           console.log('User signed in but email not confirmed, signing out');
+          
+          // Show resend link for unconfirmed emails
+          setShowResendLink(true);
           
           // Sign out immediately
           await supabase.auth.signOut();
@@ -76,6 +81,19 @@ const AuthPage: React.FC = () => {
     }));
   };
 
+  const handleResendConfirmation = async () => {
+    if (!formData.email || resendingConfirmation) return;
+    
+    setResendingConfirmation(true);
+    try {
+      await sendConfirmationAgain(formData.email.trim());
+    } catch (error) {
+      console.error('Error resending confirmation:', error);
+    } finally {
+      setResendingConfirmation(false);
+    }
+  };
+
   // SIGN IN - Only called from Sign In form
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +108,8 @@ const AuthPage: React.FC = () => {
     }
 
     setLoading(true);
+    setShowResendLink(false); // Reset resend link visibility
+    
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: formData.email.trim(),
@@ -101,6 +121,7 @@ const AuthPage: React.FC = () => {
           toast.error('Invalid email or password');
         } else if (error.message.includes('Email not confirmed')) {
           toast.error('Please check your email and confirm your account');
+          setShowResendLink(true);
         } else {
           toast.error(error.message);
         }
@@ -108,6 +129,9 @@ const AuthPage: React.FC = () => {
         // Check email confirmation immediately after successful sign-in
         if (!data.user.email_confirmed_at) {
           console.log('Sign-in successful but email not confirmed, signing out');
+          
+          // Show resend link
+          setShowResendLink(true);
           
           // Sign out immediately
           await supabase.auth.signOut();
@@ -249,6 +273,7 @@ const AuthPage: React.FC = () => {
   const switchView = (newView: AuthView) => {
     if (loading) return; // Don't switch views while loading
     setView(newView);
+    setShowResendLink(false); // Hide resend link when switching views
     // Clear form when switching views
     setFormData({
       email: formData.email, // Keep email when switching
@@ -313,6 +338,24 @@ const AuthPage: React.FC = () => {
       >
         {loading ? 'Signing in...' : 'Sign In'}
       </button>
+
+      {/* Resend Confirmation Link */}
+      {showResendLink && formData.email && (
+        <div className="text-center p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+          <p className="text-sm text-purple-300 mb-2">
+            Email not confirmed yet?
+          </p>
+          <button
+            type="button"
+            onClick={handleResendConfirmation}
+            disabled={resendingConfirmation || loading}
+            className="inline-flex items-center gap-1.5 text-sm text-purple-400 hover:text-purple-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <RefreshCw className={`h-3 w-3 ${resendingConfirmation ? 'animate-spin' : ''}`} />
+            {resendingConfirmation ? 'Sending...' : 'Resend confirmation email'}
+          </button>
+        </div>
+      )}
 
       <div className="text-center">
         <button
