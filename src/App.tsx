@@ -35,6 +35,8 @@ const App: React.FC = () => {
                     <Route path="/app/preset/:id" element={<MainContent />} />
                     <Route path="/auth" element={<AuthPage />} />
                     <Route path="/auth/callback" element={<AuthCallback />} />
+                    {/* Handle Supabase OAuth callback route */}
+                    <Route path="/auth/v1/callback" element={<AuthCallback />} />
                     <Route path="/success" element={<Success />} />
                     <Route path="/admin-login" element={<AdminLogin />} />
                     <Route path="/terms" element={<Terms />} />

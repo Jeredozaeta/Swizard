@@ -16,16 +16,16 @@ const AuthCallback: React.FC = () => {
       try {
         setStatus('Retrieving session...');
         
-        // Get the session from Supabase
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        // Handle OAuth callback by exchanging the code for a session
+        const { data, error } = await supabase.auth.exchangeCodeForSession(window.location.href);
         
-        if (sessionError) {
-          console.error('Session error:', sessionError);
-          throw new Error('Failed to retrieve authentication session');
+        if (error) {
+          console.error('OAuth exchange error:', error);
+          throw new Error('Failed to complete OAuth authentication');
         }
 
-        if (!session || !session.user) {
-          console.log('No session found, redirecting to login');
+        if (!data.session || !data.user) {
+          console.log('No session found after OAuth exchange');
           toast.error('Authentication failed. Please try again.', {
             icon: '❌',
             position: "top-center",
@@ -38,8 +38,8 @@ const AuthCallback: React.FC = () => {
         setStatus('Verifying email confirmation...');
         
         // Check if email is confirmed
-        if (!session.user.email_confirmed_at) {
-          console.log('Email not confirmed, signing out user');
+        if (!data.user.email_confirmed_at) {
+          console.log('Email not confirmed after OAuth, signing out user');
           
           // Sign out the user immediately
           await supabase.auth.signOut();
@@ -75,7 +75,7 @@ const AuthCallback: React.FC = () => {
         });
 
         // Check for redirect parameter or default to home
-        const redirectTo = searchParams.get('redirect') || '/';
+        const redirectTo = searchParams.get('redirect') || '/app';
         navigate(redirectTo);
         
       } catch (error: any) {
