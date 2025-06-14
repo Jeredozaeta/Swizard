@@ -49,8 +49,14 @@ const AuthPage: React.FC = () => {
     }));
   };
 
+  // SIGN IN - Only called from Sign In form
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    if (view !== 'sign_in') return; // Guard clause
+    if (loading) return; // Prevent double submission
+    
     if (!formData.email || !formData.password) {
       toast.error('Please fill in all fields');
       return;
@@ -59,7 +65,7 @@ const AuthPage: React.FC = () => {
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithPassword({
-        email: formData.email,
+        email: formData.email.trim(),
         password: formData.password
       });
 
@@ -80,8 +86,14 @@ const AuthPage: React.FC = () => {
     }
   };
 
+  // SIGN UP - Only called from Sign Up form
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    if (view !== 'sign_up') return; // Guard clause
+    if (loading) return; // Prevent double submission
+    
     if (!formData.email || !formData.password || !formData.fullName) {
       toast.error('Please fill in all fields');
       return;
@@ -100,11 +112,11 @@ const AuthPage: React.FC = () => {
     setLoading(true);
     try {
       const { error } = await supabase.auth.signUp({
-        email: formData.email,
+        email: formData.email.trim(),
         password: formData.password,
         options: {
           data: {
-            full_name: formData.fullName
+            full_name: formData.fullName.trim()
           },
           emailRedirectTo: `${window.location.origin}/auth`
         }
@@ -124,8 +136,14 @@ const AuthPage: React.FC = () => {
     }
   };
 
+  // FORGOT PASSWORD - Only called from Forgot Password form
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    if (view !== 'forgot_password') return; // Guard clause
+    if (loading) return; // Prevent double submission
+    
     if (!formData.email) {
       toast.error('Please enter your email address');
       return;
@@ -133,7 +151,7 @@ const AuthPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
+      const { error } = await supabase.auth.resetPasswordForEmail(formData.email.trim(), {
         redirectTo: `${window.location.origin}/auth`
       });
 
@@ -151,7 +169,10 @@ const AuthPage: React.FC = () => {
     }
   };
 
+  // GOOGLE SIGN IN - Separate method, not tied to forms
   const handleGoogleSignIn = async () => {
+    if (loading) return; // Prevent double submission
+    
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -172,6 +193,19 @@ const AuthPage: React.FC = () => {
     }
   };
 
+  // VIEW SWITCHING - Only changes UI state
+  const switchView = (newView: AuthView) => {
+    if (loading) return; // Don't switch views while loading
+    setView(newView);
+    // Clear form when switching views
+    setFormData({
+      email: formData.email, // Keep email when switching
+      password: '',
+      confirmPassword: '',
+      fullName: ''
+    });
+  };
+
   const renderSignInForm = () => (
     <form onSubmit={handleSignIn} className="space-y-4">
       <div>
@@ -188,6 +222,7 @@ const AuthPage: React.FC = () => {
             className="w-full pl-10 pr-4 py-3 bg-[#1a0b2e]/50 border border-purple-500/20 rounded-lg text-white placeholder-purple-400/50 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30"
             placeholder="Enter your email"
             required
+            disabled={loading}
           />
         </div>
       </div>
@@ -206,11 +241,13 @@ const AuthPage: React.FC = () => {
             className="w-full pl-10 pr-12 py-3 bg-[#1a0b2e]/50 border border-purple-500/20 rounded-lg text-white placeholder-purple-400/50 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30"
             placeholder="Enter your password"
             required
+            disabled={loading}
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-400 hover:text-purple-300"
+            disabled={loading}
           >
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
@@ -228,8 +265,9 @@ const AuthPage: React.FC = () => {
       <div className="text-center">
         <button
           type="button"
-          onClick={() => setView('forgot_password')}
+          onClick={() => switchView('forgot_password')}
           className="text-sm text-purple-400 hover:text-purple-300 transition-colors"
+          disabled={loading}
         >
           Forgot your password?
         </button>
@@ -253,6 +291,7 @@ const AuthPage: React.FC = () => {
             className="w-full pl-10 pr-4 py-3 bg-[#1a0b2e]/50 border border-purple-500/20 rounded-lg text-white placeholder-purple-400/50 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30"
             placeholder="Enter your full name"
             required
+            disabled={loading}
           />
         </div>
       </div>
@@ -271,6 +310,7 @@ const AuthPage: React.FC = () => {
             className="w-full pl-10 pr-4 py-3 bg-[#1a0b2e]/50 border border-purple-500/20 rounded-lg text-white placeholder-purple-400/50 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30"
             placeholder="Enter your email"
             required
+            disabled={loading}
           />
         </div>
       </div>
@@ -290,11 +330,13 @@ const AuthPage: React.FC = () => {
             placeholder="Create a password (min 6 characters)"
             required
             minLength={6}
+            disabled={loading}
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-400 hover:text-purple-300"
+            disabled={loading}
           >
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
@@ -315,6 +357,7 @@ const AuthPage: React.FC = () => {
             className="w-full pl-10 pr-4 py-3 bg-[#1a0b2e]/50 border border-purple-500/20 rounded-lg text-white placeholder-purple-400/50 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30"
             placeholder="Confirm your password"
             required
+            disabled={loading}
           />
         </div>
       </div>
@@ -345,6 +388,7 @@ const AuthPage: React.FC = () => {
             className="w-full pl-10 pr-4 py-3 bg-[#1a0b2e]/50 border border-purple-500/20 rounded-lg text-white placeholder-purple-400/50 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30"
             placeholder="Enter your email"
             required
+            disabled={loading}
           />
         </div>
       </div>
@@ -360,8 +404,9 @@ const AuthPage: React.FC = () => {
       <div className="text-center">
         <button
           type="button"
-          onClick={() => setView('sign_in')}
+          onClick={() => switchView('sign_in')}
           className="text-sm text-purple-400 hover:text-purple-300 transition-colors"
+          disabled={loading}
         >
           Back to Sign In
         </button>
@@ -380,8 +425,9 @@ const AuthPage: React.FC = () => {
         Please check your email and follow the instructions.
       </p>
       <button
-        onClick={() => setView('sign_in')}
+        onClick={() => switchView('sign_in')}
         className="text-purple-400 hover:text-purple-300 transition-colors"
+        disabled={loading}
       >
         Back to Sign In
       </button>
@@ -413,6 +459,7 @@ const AuthPage: React.FC = () => {
           <button
             onClick={() => navigate('/')}
             className="flex items-center gap-2 text-purple-400 hover:text-purple-300 transition-colors"
+            disabled={loading}
           >
             <ArrowLeft className="h-5 w-5" />
             Back to Home
@@ -478,8 +525,9 @@ const AuthPage: React.FC = () => {
               <p className="text-purple-300/80 text-sm">
                 {view === 'sign_in' ? "Don't have an account? " : "Already have an account? "}
                 <button
-                  onClick={() => setView(view === 'sign_in' ? 'sign_up' : 'sign_in')}
+                  onClick={() => switchView(view === 'sign_in' ? 'sign_up' : 'sign_in')}
                   className="text-purple-400 hover:text-purple-300 font-medium transition-colors"
+                  disabled={loading}
                 >
                   {view === 'sign_in' ? 'Sign up' : 'Sign in'}
                 </button>
